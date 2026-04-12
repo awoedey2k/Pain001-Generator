@@ -105,4 +105,88 @@ public class Pacs008Service {
         // Allows exactly 8 or exactly 11 characters conforming to SWIFT BIC constraints
         return BIC11_PATTERN.matcher(bic).matches() && (bic.length() == 8 || bic.length() == 11);
     }
+
+    /**
+     * Generates a valid pacs.008.001.10 XML from a PaymentRequest.
+     */
+    public String generatePacs008Xml(com.lanre.personl.iso20022.pain001.model.PaymentRequest request) {
+        log.info("Generating pacs.008.001.10 XML for interbank settlement: {} -> {}", request.getDebtorName(), request.getCreditorName());
+        
+        MxPacs00800110 mx = new MxPacs00800110();
+        FIToFICustomerCreditTransferV10 pacs = new FIToFICustomerCreditTransferV10();
+        
+        // 1. Group Header
+        GroupHeader96 grpHdr = new GroupHeader96();
+        grpHdr.setMsgId("PACS8-" + java.util.UUID.randomUUID().toString().substring(0, 8));
+        try {
+            grpHdr.setCreDtTm(javax.xml.datatype.DatatypeFactory.newInstance().newXMLGregorianCalendar(new java.util.GregorianCalendar()));
+        } catch (Exception ignored) {}
+        grpHdr.setNbOfTxs("1");
+        
+        SettlementInstruction11 sttlmInf = new SettlementInstruction11();
+        sttlmInf.setSttlmMtd(SettlementMethod1Code.CLRG); // Clearing
+        grpHdr.setSttlmInf(sttlmInf);
+        
+        // Instructing/Instructed agents (Using BICs or defaults)
+        grpHdr.setInstgAgt(createAgent(request.getDebtorBic() != null ? request.getDebtorBic() : "CITIUS33XXX"));
+        grpHdr.setInstdAgt(createAgent(request.getCreditorBic() != null ? request.getCreditorBic() : "BOFAGB2L"));
+        
+        pacs.setGrpHdr(grpHdr);
+        
+        // 2. Transaction Information
+        CreditTransferTransaction50 tx = new CreditTransferTransaction50();
+        PaymentIdentification13 pmtId = new PaymentIdentification13();
+        pmtId.setEndToEndId(request.getEndToEndId() != null ? request.getEndToEndId() : java.util.UUID.randomUUID().toString());
+        pmtId.setTxId("TX-" + java.util.UUID.randomUUID().toString().substring(0, 8));
+        tx.setPmtId(pmtId);
+        
+        ActiveCurrencyAndAmount intrBkAmt = new ActiveCurrencyAndAmount();
+        intrBkAmt.setValue(request.getAmount());
+        intrBkAmt.setCcy(request.getCurrency());
+        tx.setIntrBkSttlmAmt(intrBkAmt);
+
+        ActiveOrHistoricCurrencyAndAmount instdAmt = new ActiveOrHistoricCurrencyAndAmount();
+        instdAmt.setValue(request.getAmount());
+        instdAmt.setCcy(request.getCurrency());
+        tx.setInstdAmt(instdAmt);
+        
+        tx.setChrgBr(ChargeBearerType1Code.SLEV); // Shared
+        
+        // Debtor
+        tx.setDbtr(createParty(request.getDebtorName()));
+        tx.setDbtrAcct(createAccount(request.getDebtorIban()));
+        tx.setDbtrAgt(createAgent(request.getDebtorBic() != null ? request.getDebtorBic() : "CITIUS33XXX"));
+        
+        // Creditor
+        tx.setCdtr(createParty(request.getCreditorName()));
+        tx.setCdtrAcct(createAccount(request.getCreditorIban()));
+        tx.setCdtrAgt(createAgent(request.getCreditorBic() != null ? request.getCreditorBic() : "BOFAGB2L"));
+        
+        pacs.addCdtTrfTxInf(tx);
+        mx.setFIToFICstmrCdtTrf(pacs);
+        
+        return mx.message();
+    }
+
+    private BranchAndFinancialInstitutionIdentification6 createAgent(String bic) {
+        BranchAndFinancialInstitutionIdentification6 agent = new BranchAndFinancialInstitutionIdentification6();
+        FinancialInstitutionIdentification18 finId = new FinancialInstitutionIdentification18();
+        finId.setBICFI(bic);
+        agent.setFinInstnId(finId);
+        return agent;
+    }
+
+    private PartyIdentification135 createParty(String name) {
+        PartyIdentification135 party = new PartyIdentification135();
+        party.setNm(name);
+        return party;
+    }
+
+    private CashAccount40 createAccount(String iban) {
+        CashAccount40 account = new CashAccount40();
+        AccountIdentification4Choice id = new AccountIdentification4Choice();
+        id.setIBAN(iban);
+        account.setId(id);
+        return account;
+    }
 }

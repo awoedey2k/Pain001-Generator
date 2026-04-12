@@ -191,6 +191,19 @@ It validates the parsed Interbank payload identically against `pacs.008.001.10.x
 **Header**: `Content-Type: application/xml` OR `text/xml`
 
 
+### Pacs.008 Generation (Interbank Settlement)
+Similar to `pain.001`, you can generate an Interbank Settlement message directly from a JSON payload.
+
+**Endpoint**: `POST http://localhost:8080/api/v1/pacs008`
+**Header**: `Content-Type: application/json`
+
+| Request Field | pacs.008 Mapping |
+| :--- | :--- |
+| `amount` / `currency` | `<IntrBkSttlmAmt>` & `<InstdAmt>` |
+| `debtorName` / `debtorIban` / `debtorBic` | `<Dbtr>`, `<DbtrAcct>`, `<DbtrAgt>` |
+| `creditorName` / `creditorIban` / `creditorBic` | `<Cdtr>`, `<CdtrAcct>`, `<CdtrAgt>` |
+| `endToEndId` | `<PmtId>/<EndToEndId>` |
+
 ## 🧠 How the Code Works
 
 The magic primarily takes place in `Pain001GeneratorService.java`. It converts a basic POJO class mapped from your inbound JSON into the heavily nested model entities supported by the Prowide open-source framework (`SRU2023` package release).
