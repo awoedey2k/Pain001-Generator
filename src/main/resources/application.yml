@@ -1,0 +1,10 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: pain001-generator
+
+logging:
+  level:
+    com.lanre.personl.iso20022: DEBUG
