@@ -18,6 +18,19 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 
+/**
+ * ISO 20022 Interbank Settlement Engine (pacs.008).
+ * <p>
+ * This service handles the generation and gatekeeper validation of FI-to-FI Customer
+ * Credit Transfer messages (pacs.008.001.10).
+ * </p>
+ *
+ * <p><b>Gatekeeper Validation (3-Stage):</b></p>
+ * <ol>
+ *   <li><b>Technical</b>: Schema validation against official ISO 20022 XSDs.</li>
+ *   <li><b>Business</b>: Strict BIC11 format verification and field presence.</li>
+ * </ol>
+ */
 @Slf4j
 @Service
 public class Pacs008Service {
@@ -143,7 +156,13 @@ public class Pacs008Service {
         // 2. Transaction Information
         CreditTransferTransaction50 tx = new CreditTransferTransaction50();
         PaymentIdentification13 pmtId = new PaymentIdentification13();
-        pmtId.setEndToEndId(request.getEndToEndId() != null ? request.getEndToEndId() : java.util.UUID.randomUUID().toString());
+        
+        String e2eId = request.getEndToEndId();
+        if (e2eId == null || e2eId.trim().isEmpty()) {
+            e2eId = "E2E-" + java.util.UUID.randomUUID().toString().substring(0, 8);
+            request.setEndToEndId(e2eId);
+        }
+        pmtId.setEndToEndId(e2eId);
         pmtId.setTxId("TX-" + java.util.UUID.randomUUID().toString().substring(0, 8));
         tx.setPmtId(pmtId);
         

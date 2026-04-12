@@ -224,16 +224,18 @@ The system is now a functional **ISO 20022 Switch**, capable of routing `pacs.00
 
 The gateway now supports the **full end-to-end lifecycle** of a transaction, tracking states from initiation to bank reconciliation.
 
-### Lifecycle Stages:
+### 🔄 Reconciliation & Statement Processing
+The system now supports automated reconciliation of open payments via Bank-to-Customer Statements.
+
+**Endpoint**: `POST http://localhost:8080/api/v1/reconciliation/statement`  
+**Header**: `Content-Type: application/xml`  
+**Description**: Processes a `camt.053.001.10` bank statement, identifies `EndToEndId`s for settled transactions, and transitions their status to `RECONCILED`.
+
+### 🛡️ Lifecycle Stages:
 1.  **PENDING**: Created when a `pain.001` is generated.
 2.  **SETTLING**: Updated when the `pacs.008` (Settlement) is generated.
 3.  **RECONCILED**: Final state triggered by matching an `EndToEndId` within an uploaded `camt.053` bank statement.
 4.  **FAILED**: Triggered if a `pacs.002` rejection is received.
-
-### Key Components:
-- **Correlation Engine**: Automatically matches messages across different ISO 20022 types using the `EndToEndId` as a "Golden Thread".
-- **Audit Persistence**: Every raw XML payload is logged in the `ISO_MESSAGE_AUDITS` table, linked to a `PAYMENT_WORKFLOWS` record.
-- **Statement Processing**: Upload `camt.053` files to the `/reconciliation` service to automatically close open settles.
 
 **Audit Endpoint**: `GET /api/v1/lifecycle/{endToEndId}`  
 Returns the full business state and a complete timeline of all associated ISO messages.

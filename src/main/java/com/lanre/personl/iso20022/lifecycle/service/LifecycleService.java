@@ -11,6 +11,22 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
+/**
+ * Stateful Lifecycle Orchestrator for ISO 20022 Payments.
+ * <p>
+ * This service manages the "Golden Thread" of a transaction by correlating multiple message types
+ * (pain.001, pacs.008, camt.053, etc.) under a single {@link PaymentWorkflow} entity.
+ * It uses the ISO-standard {@code EndToEndId} as the primary correlation key.
+ * </p>
+ *
+ * <h3>Key Stages:</h3>
+ * <ul>
+ *   <li><b>PENDING</b>: Initiated via pain.001</li>
+ *   <li><b>SETTLING</b>: Interbank settlement instruction (pacs.008) triggered</li>
+ *   <li><b>RECONCILED</b>: Confirmed via bank statement (camt.053)</li>
+ *   <li><b>FAILED</b>: Rejection reported via status return (pacs.002)</li>
+ * </ul>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

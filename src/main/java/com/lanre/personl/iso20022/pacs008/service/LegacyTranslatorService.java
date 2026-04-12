@@ -18,6 +18,21 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Legacy Interoperability Bridge (MT to MX).
+ * <p>
+ * This service provides high-fidelity translation from legacy FIN messages (MT103)
+ * to ISO 20022 interbank standards (pacs.008.001.10).
+ * </p>
+ *
+ * <p><b>Mapping Logic:</b></p>
+ * <ul>
+ *   <li><b>Field 32A</b>: Mapped to {@code IntrBkSttlmAmt} and {@code IntrBkSttlmDte}.</li>
+ *   <li><b>Field 50K/A</b>: Mapped to {@code Dbtr} (Debtor) details, using unstructured address fallback.</li>
+ *   <li><b>Field 59</b>: Mapped to {@code Cdtr} (Creditor) and {@code CdtrAcct}.</li>
+ *   <li><b>Field 20</b>: Preserved as the {@code EndToEndId} for downstream correlation.</li>
+ * </ul>
+ */
 @Slf4j
 @Service
 public class LegacyTranslatorService {

@@ -9,6 +9,17 @@ import javax.xml.datatype.DatatypeFactory;
 import java.util.GregorianCalendar;
 import java.util.UUID;
 
+/**
+ * ISO 20022 Status Reporting Engine (pacs.002).
+ * <p>
+ * This service generates automated Status Report messages (pacs.002.001.12) to
+ * communicate rejections or updates within the interbank network.
+ * </p>
+ *
+ * <p><b>Usage:</b></p>
+ * Triggered automatically when the {@link PaymentRouterService} cannot find a
+ * matching Market Infrastructure for a processed settlement.
+ */
 @Slf4j
 @Service
 public class Pacs002Service {

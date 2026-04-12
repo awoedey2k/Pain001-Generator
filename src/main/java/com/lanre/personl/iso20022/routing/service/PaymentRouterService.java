@@ -19,6 +19,22 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Intelligent Payment Router (The Switch).
+ * <p>
+ * This service acts as the central hub for interbank message routing. It takes
+ * validated pacs.008 messages, selects the appropriate Market Infrastructure (MI)
+ * via the Strategy Pattern, wraps the payload in a Business Application Header (BAH),
+ * and persists the routing decision for audit purposes.
+ * </p>
+ *
+ * <p><b>Routing Rules (Prioritized):</b></p>
+ * <ol>
+ *   <li><b>High-Value Override</b>: Priority BICs are routed to specialized settlement queues.</li>
+ *   <li><b>Currency Mapping</b>: Payments are routed based on ISO 4217 Match (e.g., EUR to SEPA).</li>
+ *   <li><b>Fallback</b>: Unroutable payments trigger an automated pacs.002 rejection.</li>
+ * </ol>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor

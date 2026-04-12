@@ -55,6 +55,17 @@ import java.util.UUID;
  * ({@code com.prowidesoftware:pw-iso20022}) which provides typed Java
  * classes generated from the official ISO 20022 XSD schemas.</p>
  */
+/**
+ * Customer Credit Transfer Initiation Engine (pain.001).
+ * <p>
+ * This service transforms high-level JSON {@link PaymentRequest} objects into
+ * valid ISO 20022 pain.001.001.11 XML messages (SRU2023).
+ * </p>
+ *
+ * <p><b>Lifecycle Integration:</b></p>
+ * Each generation event triggers the creation of a 'PENDING' workflow in the
+ * stateful tracking engine.
+ */
 @Slf4j
 @Service
 @lombok.RequiredArgsConstructor
@@ -223,9 +234,12 @@ public class Pain001GeneratorService {
         // InstrId: Instruction identification (unique within the message)
         pmtId.setInstrId("INSTR-" + UUID.randomUUID().toString().substring(0, 8));
         // EndToEndId: End-to-end identification (travels with the payment)
-        pmtId.setEndToEndId(request.getEndToEndId() != null
-                ? request.getEndToEndId()
-                : "E2E-" + UUID.randomUUID().toString().substring(0, 12));
+        String e2eId = request.getEndToEndId();
+        if (e2eId == null || e2eId.isEmpty()) {
+            e2eId = "E2E-" + UUID.randomUUID().toString().substring(0, 8);
+            request.setEndToEndId(e2eId);
+        }
+        pmtId.setEndToEndId(e2eId);
         txInfo.setPmtId(pmtId);
 
         // ── Amount ──────────────────────────────────────────────────────

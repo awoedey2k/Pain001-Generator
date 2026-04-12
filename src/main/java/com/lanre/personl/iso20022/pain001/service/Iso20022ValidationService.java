@@ -24,6 +24,19 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.*;
 
+/**
+ * ISO 20022 Gatekeeper Validation Service.
+ * <p>
+ * This service implements a rigorous 3-stage validation pipeline for inbound
+ * pain.001.001.11 messages (SRU2023):
+ * </p>
+ *
+ * <ol>
+ *   <li><b>STAGE 1: Technical XSD</b> - Schema conformity check.</li>
+ *   <li><b>STAGE 2: Semantic</b> - ISO code list verification (Currency, Countries).</li>
+ *   <li><b>STAGE 3: Business</b> - Logical constraints (Execution dates, weekend checks).</li>
+ * </ol>
+ */
 @Slf4j
 @Service
 public class Iso20022ValidationService {

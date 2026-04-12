@@ -7,6 +7,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+/**
+ * ISO 20022 camt.053 Reconciliation Engine.
+ * <p>
+ * This service parses Bank-to-Customer Statement (camt.053) messages (SRU2023)
+ * to perform transaction reconciliation. It deep-scans account entries and
+ * associated transaction details to extract the {@code EndToEndId}.
+ * </p>
+ *
+ * <p><b>Reconciliation Logic:</b></p>
+ * Each matched EndToEndId is reported back to the {@link LifecycleService}
+ * to flip the payment status to 'RECONCILED'.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
