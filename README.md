@@ -147,14 +147,42 @@ The Gatekeeper enforces:
 - **Valid Message**: Returns a `pain.002.001.10` Customer Payment Status Report mapped purely to **ACCP** (Accepted).
 - **Invalid Message**: If parsing bounces in any layer, natively returns a `pain.002` tracking the exact error layer via `RJCT` (Rejected) `<StsRsnInf>` reason codes.
 
-## 🌐 MT103 Translator & Pacs.008 Expansion
+## 🌐 Legacy MT103 Translator & Pacs.008 Expansion
 
 The system has been expanded natively processing ISO 20022 Interbank (`pacs.008.001.10`) structures alongside Legacy SWIFT `MT103` string conversions, bridging interoperability gaps.
 
-**Key Deliverables Included:**
-1. **The Legacy Translator**: A robust translation engine parsing unstructured `MT103` strings using Prowide Core. It identically maps fields `:32A:`, `:50K/A:`, and `:59:`, pushing their payloads natively into structured `MxPacs00800110` targets.
-2. **Data Overflow Protection**: Legacy MT features like `:50K:` often consist of arbitrary lines that truncate if aggressively tokenized. This engine maps legacy address strings dynamically into the 7-iteration `<AdrLine>` within ISO 20022! This explicitly guarantees ZERO information truncation and flawless semantic migrations.
-3. **Pacs008 Gatekeeper**: Implements comprehensive Interbank gatekeeping. It validates payloads against `pacs.008.001.10.xsd` whilst executing native Business limit assertions, ensuring nested arrays natively abide by standard BIC rules (enforcing exactly 8 or 11 character constraints per `InstgAgt` / `InstdAgt` `BICFI`).
+### The Legacy Translator Mapping
+The legacy translator automatically decodes a raw FIN string and bridges it identically into the `pacs.008` object hierarchy utilizing native Prowide extraction algorithms.
+
+**Sample Request Payload (MT103 Text):**
+```text
+{1:F01BANKDEFMAXXX2039063581}{2:O1031609160904BANKDEFXAXXX89549829458949811609N}{4:
+:20:O-0T21516
+:32A:210412USD100000,
+:50K:/123456789
+JOHN DOE
+123 MAIN STREET
+NEW YORK, NY
+US
+:59:/987654321
+JANE DOE
+456 OAK AVENUE
+LONDON
+UK
+-}
+```
+
+**Expected Translation Mapping (`pacs.008`):**
+The generated elements perfectly encapsulate "Data Overflow" safeguards utilizing the versatile 7-iteration `<AdrLine>` natively permitted by ISO.
+
+| Legacy MT103 Field | ISO 20022 `pacs.008` Node | Translation Rule |
+| :--- | :--- | :--- |
+| `:32A:` Date, Currency, Amount | `<TtlIntrBkSttlmAmt Ccy="...">` <br> `<IntrBkSttlmDt>` | Safely parses the unstructured Date into rigid XML patterns seamlessly while extracting numeric values. |
+| `:50K:` Ordering Customer | `<Dbtr>` <br> `<Nm>` & `<PstlAdr>` | Line 1 maps to `<Nm>`. Remaining Lines 2-4 map identically as raw strings safely descending into iteration sequences inside `<AdrLine>` to negate truncation. |
+| `:59:` Beneficiary Customer | `<Cdtr>` & `<CdtrAcct>` | Evaluates prefix boundaries dynamically, resolving exact `<Id><Othr>` paths alongside name assignments. |
+
+### Pacs.008 Gatekeeper
+It validates the parsed Interbank payload identically against `pacs.008.001.10.xsd` definitions whilst evaluating business limitations natively enforcing standard BIC rules (enforcing exactly 8 or 11 character constraints securely against `InstgAgt` and `InstdAgt` `BICFI` records).
 
 ## 🧠 How the Code Works
 
