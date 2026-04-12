@@ -19,30 +19,35 @@ Built completely around the robust **Prowide ISO 20022 open-source library**, th
 ## 🏁 How to Run
 
 1. **Clone the repository** (if you haven't already):
+
    ```bash
    git clone https://github.com/awoedey2k/Pain001-Generator.git
    cd "Pain001-Generator"
    ```
 
 2. **Clean & Build**:
+
    ```bash
    mvn clean install
    ```
 
 3. **Start the Application**:
+
    ```bash
    mvn spring-boot:run
    ```
+
    > The application launches on default port `8080`.
 
 ## 🛠️ Usage Example
 
-You can generate the XML on the fly by hitting the provided endpoint utilizing `cURL` or Postman. 
+You can generate the XML on the fly by hitting the provided endpoint utilizing `cURL` or Postman.
 
 **Endpoint**: `POST http://localhost:8080/api/v1/pain001`
 **Header**: `Content-Type: application/json`
 
 **Sample Request Payload:**
+
 ```json
 {
   "debtorName": "Acme Corporation",
@@ -59,6 +64,7 @@ You can generate the XML on the fly by hitting the provided endpoint utilizing `
 ```
 
 **Expected XML Response (`application/xml`):**
+
 ```xml
 <?xml version="1.0" encoding="UTF-8" ?>
 <Doc:Document xmlns:Doc="urn:iso:std:iso:20022:tech:xsd:pain.001.001.11">
@@ -131,11 +137,13 @@ This project also includes a robust, multi-stage validation pipeline for incomin
 **Header**: `Content-Type: application/xml` OR `text/xml`
 
 The Gatekeeper enforces:
+
 1. **Stage 1 (Technical)**: Strict validation against the official SWIFT/ISO `pain.001.001.11.xsd` tracking syntax and XML namespace integrity.
 2. **Stage 2 (Semantic)**: Deep inspection validating elements against canonical ISO tables (e.g., ISO 4217 Currency Codes).
 3. **Stage 3 (Business Constraints)**: Execution Date limits blocking weekend processing or retroactive dates.
 
 **Responses (`application/xml`)**: Native ISO 20022 Status!
+
 - **Valid Message**: Returns a `pain.002.001.10` Customer Payment Status Report mapped purely to **ACCP** (Accepted).
 - **Invalid Message**: If parsing bounces in any layer, natively returns a `pain.002` tracking the exact error layer via `RJCT` (Rejected) `<StsRsnInf>` reason codes.
 
@@ -156,4 +164,5 @@ The magic primarily takes place in `Pain001GeneratorService.java`. It converts a
 ```bash
 mvn test
 ```
+
 The project utilizes `JUnit 5` to analyze XML containment, testing the creation of tags mapping specifically across the required root node elements (`<Doc:Document>`, `<Doc:CstmrCdtTrfInitn>`) down to deep value validation routines safely resolving nested structural data points.
