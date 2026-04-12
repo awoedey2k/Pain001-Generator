@@ -147,6 +147,15 @@ The Gatekeeper enforces:
 - **Valid Message**: Returns a `pain.002.001.10` Customer Payment Status Report mapped purely to **ACCP** (Accepted).
 - **Invalid Message**: If parsing bounces in any layer, natively returns a `pain.002` tracking the exact error layer via `RJCT` (Rejected) `<StsRsnInf>` reason codes.
 
+## 🌐 MT103 Translator & Pacs.008 Expansion
+
+The system has been expanded natively processing ISO 20022 Interbank (`pacs.008.001.10`) structures alongside Legacy SWIFT `MT103` string conversions, bridging interoperability gaps.
+
+**Key Deliverables Included:**
+1. **The Legacy Translator**: A robust translation engine parsing unstructured `MT103` strings using Prowide Core. It identically maps fields `:32A:`, `:50K/A:`, and `:59:`, pushing their payloads natively into structured `MxPacs00800110` targets.
+2. **Data Overflow Protection**: Legacy MT features like `:50K:` often consist of arbitrary lines that truncate if aggressively tokenized. This engine maps legacy address strings dynamically into the 7-iteration `<AdrLine>` within ISO 20022! This explicitly guarantees ZERO information truncation and flawless semantic migrations.
+3. **Pacs008 Gatekeeper**: Implements comprehensive Interbank gatekeeping. It validates payloads against `pacs.008.001.10.xsd` whilst executing native Business limit assertions, ensuring nested arrays natively abide by standard BIC rules (enforcing exactly 8 or 11 character constraints per `InstgAgt` / `InstdAgt` `BICFI`).
+
 ## 🧠 How the Code Works
 
 The magic primarily takes place in `Pain001GeneratorService.java`. It converts a basic POJO class mapped from your inbound JSON into the heavily nested model entities supported by the Prowide open-source framework (`SRU2023` package release).

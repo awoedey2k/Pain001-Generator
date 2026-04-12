@@ -35,6 +35,13 @@
             <version>${prowide.iso20022.version}</version>
         </dependency>
 
+        <!-- Prowide Core for MT Legacy Parsing -->
+        <dependency>
+            <groupId>com.prowidesoftware</groupId>
+            <artifactId>pw-swift-core</artifactId>
+            <version>${prowide.iso20022.version}</version>
+        </dependency>
+
         <!-- JAXB API + Runtime (Prowide SRU2023 uses javax.xml.bind.*, removed from JDK 11+) -->
         <dependency>
             <groupId>javax.xml.bind</groupId>
