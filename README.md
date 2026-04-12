@@ -218,7 +218,25 @@ The system is now a functional **ISO 20022 Switch**, capable of routing `pacs.00
     - **Rule B (Fedwire)**: Routes `USD` payments to a Fedwire mock service.
     - **Rule C (Priority)**: Prioritizes BICs on the "High-Value" list (e.g., `CITIUS33XXX`) regardless of currency.
 - **Fail-Safe Rejections**: If no routing rule matches (e.g., `GBP`), it generates a native **`pacs.002.001.12`** rejection XML.
-- **JPA Audit Trail**: Every decision is persisted in the `PAYMENT_ROUTING_AUDIT` table for compliance tracking.
+| `endToEndId` | `<PmtId>/<EndToEndId>` |
+
+## 🔄 Stateful Payment Lifecycle & Reconciliation
+
+The gateway now supports the **full end-to-end lifecycle** of a transaction, tracking states from initiation to bank reconciliation.
+
+### Lifecycle Stages:
+1.  **PENDING**: Created when a `pain.001` is generated.
+2.  **SETTLING**: Updated when the `pacs.008` (Settlement) is generated.
+3.  **RECONCILED**: Final state triggered by matching an `EndToEndId` within an uploaded `camt.053` bank statement.
+4.  **FAILED**: Triggered if a `pacs.002` rejection is received.
+
+### Key Components:
+- **Correlation Engine**: Automatically matches messages across different ISO 20022 types using the `EndToEndId` as a "Golden Thread".
+- **Audit Persistence**: Every raw XML payload is logged in the `ISO_MESSAGE_AUDITS` table, linked to a `PAYMENT_WORKFLOWS` record.
+- **Statement Processing**: Upload `camt.053` files to the `/reconciliation` service to automatically close open settles.
+
+**Audit Endpoint**: `GET /api/v1/lifecycle/{endToEndId}`  
+Returns the full business state and a complete timeline of all associated ISO messages.
 
 ## 🧠 How the Code Works
 

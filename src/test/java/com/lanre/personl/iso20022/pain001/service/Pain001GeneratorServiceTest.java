@@ -1,9 +1,10 @@
 package com.lanre.personl.iso20022.pain001.service;
 
 import com.lanre.personl.iso20022.pain001.model.PaymentRequest;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 
@@ -13,13 +14,17 @@ import static org.junit.jupiter.api.Assertions.*;
  * Unit tests for {@link Pain001GeneratorService}.
  * Validates that the generated XML conforms to pain.001.001.11 structure.
  */
+@ExtendWith(MockitoExtension.class)
 class Pain001GeneratorServiceTest {
 
     private Pain001GeneratorService service;
 
+    @Mock
+    private com.lanre.personl.iso20022.lifecycle.service.LifecycleService lifecycleService;
+
     @BeforeEach
     void setUp() {
-        service = new Pain001GeneratorService();
+        service = new Pain001GeneratorService(lifecycleService);
     }
 
     private PaymentRequest sampleRequest() {

@@ -22,10 +22,12 @@ import java.util.regex.Pattern;
 @Service
 public class Pacs008Service {
 
+    private final com.lanre.personl.iso20022.lifecycle.service.LifecycleService lifecycleService;
     private final Validator xsdValidator;
     private static final Pattern BIC11_PATTERN = Pattern.compile("^[A-Z]{6,6}[A-Z2-9][A-NP-Z0-9]([A-Z0-9]{3,3})?$");
 
-    public Pacs008Service() {
+    public Pacs008Service(com.lanre.personl.iso20022.lifecycle.service.LifecycleService lifecycleService) {
+        this.lifecycleService = lifecycleService;
         Validator temp = null;
         try {
             SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
@@ -170,7 +172,12 @@ public class Pacs008Service {
         pacs.addCdtTrfTxInf(tx);
         mx.setFIToFICstmrCdtTrf(pacs);
         
-        return mx.message();
+        String xml = mx.message();
+
+        // ── 3. Lifecycle Tracking ───────────────────────────────────────
+        lifecycleService.markAsSettling(request.getEndToEndId(), xml, grpHdr.getMsgId());
+        
+        return xml;
     }
 
     private BranchAndFinancialInstitutionIdentification6 createAgent(String bic) {

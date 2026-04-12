@@ -57,7 +57,10 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
+@lombok.RequiredArgsConstructor
 public class Pain001GeneratorService {
+
+    private final com.lanre.personl.iso20022.lifecycle.service.LifecycleService lifecycleService;
 
     /**
      * Generates a pretty-printed pain.001.001.11 XML string from the given
@@ -88,6 +91,9 @@ public class Pain001GeneratorService {
 
         // ── 5. Serialize to pretty-printed XML ──────────────────────────
         String xml = mxMessage.message();
+
+        // ── 6. Lifecycle Tracking ───────────────────────────────────────
+        lifecycleService.startWorkflow(request, xml, initiation.getGrpHdr().getMsgId());
 
         log.debug("Generated pain.001.001.11 XML:\n{}", xml);
         return xml;

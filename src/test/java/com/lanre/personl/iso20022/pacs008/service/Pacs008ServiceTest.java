@@ -3,22 +3,27 @@ package com.lanre.personl.iso20022.pacs008.service;
 import com.lanre.personl.iso20022.pain001.exception.ValidationException;
 import com.prowidesoftware.swift.model.mx.MxPacs00800110;
 import com.prowidesoftware.swift.model.mx.dic.*;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@ExtendWith(MockitoExtension.class)
 class Pacs008ServiceTest {
 
     private Pacs008Service pacs008Service;
 
+    @Mock
+    private com.lanre.personl.iso20022.lifecycle.service.LifecycleService lifecycleService;
+
     @BeforeEach
     void setUp() {
-        pacs008Service = new Pacs008Service();
+        pacs008Service = new Pacs008Service(lifecycleService);
     }
 
     private String getValidPacs008XmlString() {

@@ -3,9 +3,10 @@ package com.lanre.personl.iso20022.pain001.service;
 import com.lanre.personl.iso20022.pain001.exception.ValidationException;
 import com.lanre.personl.iso20022.pain001.model.PaymentRequest;
 import com.prowidesoftware.swift.model.mx.MxPain00100111;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
@@ -14,15 +15,19 @@ import java.time.format.DateTimeFormatter;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@ExtendWith(MockitoExtension.class)
 class Iso20022ValidationServiceTest {
 
     private Iso20022ValidationService validationService;
     private Pain001GeneratorService generatorService;
 
+    @Mock
+    private com.lanre.personl.iso20022.lifecycle.service.LifecycleService lifecycleService;
+
     @BeforeEach
     void setUp() {
         validationService = new Iso20022ValidationService();
-        generatorService = new Pain001GeneratorService();
+        generatorService = new Pain001GeneratorService(lifecycleService);
     }
 
     private PaymentRequest createValidRequest() {
