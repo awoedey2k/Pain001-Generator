@@ -126,6 +126,11 @@ public class Pacs008Service {
         SettlementInstruction11 sttlmInf = new SettlementInstruction11();
         sttlmInf.setSttlmMtd(SettlementMethod1Code.CLRG); // Clearing
         grpHdr.setSttlmInf(sttlmInf);
+
+        ActiveCurrencyAndAmount ttlAmt = new ActiveCurrencyAndAmount();
+        ttlAmt.setValue(request.getAmount());
+        ttlAmt.setCcy(request.getCurrency());
+        grpHdr.setTtlIntrBkSttlmAmt(ttlAmt);
         
         // Instructing/Instructed agents (Using BICs or defaults)
         grpHdr.setInstgAgt(createAgent(request.getDebtorBic() != null ? request.getDebtorBic() : "CITIUS33XXX"));

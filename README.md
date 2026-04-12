@@ -204,6 +204,22 @@ Similar to `pain.001`, you can generate an Interbank Settlement message directly
 | `creditorName` / `creditorIban` / `creditorBic` | `<Cdtr>`, `<CdtrAcct>`, `<CdtrAgt>` |
 | `endToEndId` | `<PmtId>/<EndToEndId>` |
 
+## 🕹️ Intelligent Payment Router (The Switch)
+
+The system is now a functional **ISO 20022 Switch**, capable of routing `pacs.008` messages to specialized clearing adapters with BAH wrapping and real-time auditing.
+
+**Endpoint**: `POST http://localhost:8080/api/v1/switch/route`  
+**Header**: `Content-Type: application/xml`
+
+### Switch Features:
+- **BAH Wrapping**: Automatically wraps payloads with the `head.001.001.03` Business Application Header for standard interbank transmission.
+- **Intelligent Routing Logic**: Uses the **Strategy Pattern** to select destinations:
+    - **Rule A (SEPA)**: Routes `EUR` payments to a mock SEPA Instant service.
+    - **Rule B (Fedwire)**: Routes `USD` payments to a Fedwire mock service.
+    - **Rule C (Priority)**: Prioritizes BICs on the "High-Value" list (e.g., `CITIUS33XXX`) regardless of currency.
+- **Fail-Safe Rejections**: If no routing rule matches (e.g., `GBP`), it generates a native **`pacs.002.001.12`** rejection XML.
+- **JPA Audit Trail**: Every decision is persisted in the `PAYMENT_ROUTING_AUDIT` table for compliance tracking.
+
 ## 🧠 How the Code Works
 
 The magic primarily takes place in `Pain001GeneratorService.java`. It converts a basic POJO class mapped from your inbound JSON into the heavily nested model entities supported by the Prowide open-source framework (`SRU2023` package release).
