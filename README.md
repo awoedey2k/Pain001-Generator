@@ -123,6 +123,22 @@ You can generate the XML on the fly by hitting the provided endpoint utilizing `
 </Doc:Document>
 ```
 
+## 🛡️ Gatekeeper Validation Engine
+
+This project also includes a robust, multi-stage validation pipeline for incoming `pain.001` messages.
+
+**Endpoint**: `POST http://localhost:8080/api/v1/validate/pain001`
+**Header**: `Content-Type: application/xml` OR `text/xml`
+
+The Gatekeeper enforces:
+1. **Stage 1 (Technical)**: Strict validation against the official SWIFT/ISO `pain.001.001.11.xsd` tracking syntax and XML namespace integrity.
+2. **Stage 2 (Semantic)**: Deep inspection validating elements against canonical ISO tables (e.g., ISO 4217 Currency Codes).
+3. **Stage 3 (Business Constraints)**: Execution Date limits blocking weekend processing or retroactive dates.
+
+**Responses (`application/xml`)**: Native ISO 20022 Status!
+- **Valid Message**: Returns a `pain.002.001.10` Customer Payment Status Report mapped purely to **ACCP** (Accepted).
+- **Invalid Message**: If parsing bounces in any layer, natively returns a `pain.002` tracking the exact error layer via `RJCT` (Rejected) `<StsRsnInf>` reason codes.
+
 ## 🧠 How the Code Works
 
 The magic primarily takes place in `Pain001GeneratorService.java`. It converts a basic POJO class mapped from your inbound JSON into the heavily nested model entities supported by the Prowide open-source framework (`SRU2023` package release).
