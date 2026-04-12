@@ -154,6 +154,9 @@ The system has been expanded natively processing ISO 20022 Interbank (`pacs.008.
 ### The Legacy Translator Mapping
 The legacy translator automatically decodes a raw FIN string and bridges it identically into the `pacs.008` object hierarchy utilizing native Prowide extraction algorithms.
 
+**Endpoint**: `POST http://localhost:8080/api/v1/translator/mt103`
+**Header**: `Content-Type: text/plain`
+
 **Sample Request Payload (MT103 Text):**
 ```text
 {1:F01BANKDEFMAXXX2039063581}{2:O1031609160904BANKDEFXAXXX89549829458949811609N}{4:
@@ -183,6 +186,10 @@ The generated elements perfectly encapsulate "Data Overflow" safeguards utilizin
 
 ### Pacs.008 Gatekeeper
 It validates the parsed Interbank payload identically against `pacs.008.001.10.xsd` definitions whilst evaluating business limitations natively enforcing standard BIC rules (enforcing exactly 8 or 11 character constraints securely against `InstgAgt` and `InstdAgt` `BICFI` records).
+
+**Endpoint**: `POST http://localhost:8080/api/v1/validate/pacs008`
+**Header**: `Content-Type: application/xml` OR `text/xml`
+
 
 ## 🧠 How the Code Works
 
