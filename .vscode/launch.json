@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-Pain001GeneratorApplication<pain001-generator>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.lanre.personl.iso20022.Iso20022GatewayApplication",
+            "projectName": "pain001-generator",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}
