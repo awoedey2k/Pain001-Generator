@@ -46,8 +46,13 @@ public class Iso20022ValidationService {
     public Iso20022ValidationService() {
         try {
             SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
-            Schema schema = factory.newSchema(new ClassPathResource("xsd/pain.001.001.11.xsd").getFile());
-            this.xsdValidator = schema.newValidator();
+            ClassPathResource xsdResource = new ClassPathResource("xsd/pain.001.001.11.xsd");
+            try (var xsdStream = xsdResource.getInputStream()) {
+                StreamSource xsdSource = new StreamSource(xsdStream);
+                xsdSource.setSystemId(xsdResource.getURL().toExternalForm());
+                Schema schema = factory.newSchema(xsdSource);
+                this.xsdValidator = schema.newValidator();
+            }
         } catch (Exception e) {
             log.error("Failed to initialize XSD Validator: ", e);
             throw new RuntimeException("Validation Engine could not start. Missing or invalid XSD.");

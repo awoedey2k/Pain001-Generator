@@ -44,8 +44,13 @@ public class Pacs008Service {
         Validator temp = null;
         try {
             SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
-            Schema schema = factory.newSchema(new ClassPathResource("xsd/pacs.008.001.10.xsd").getFile());
-            temp = schema.newValidator();
+            ClassPathResource xsdResource = new ClassPathResource("xsd/pacs.008.001.10.xsd");
+            try (var xsdStream = xsdResource.getInputStream()) {
+                StreamSource xsdSource = new StreamSource(xsdStream);
+                xsdSource.setSystemId(xsdResource.getURL().toExternalForm());
+                Schema schema = factory.newSchema(xsdSource);
+                temp = schema.newValidator();
+            }
         } catch (Exception e) {
             log.warn("pacs.008.001.10.xsd validation fallback ignored due to absence. Operating without strict XSD.");
         }
