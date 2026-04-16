@@ -79,6 +79,54 @@ flowchart LR
   - `GET /api/v1/lifecycle/{endToEndId}`
   - `GET /api/v1/lifecycle/all`
 
+## API Hardening
+
+- **Authentication**: All `/api/v1/**` endpoints require HTTP Basic authentication while `iso20022.api.enabled=true`.
+- **Authorization**: `WRITER` and `ADMIN` can call write/processing APIs; `AUDITOR` and `ADMIN` can call lifecycle read APIs.
+- **Rate Limiting**: A simple in-memory per-client-IP limiter protects `/api/v1/**` with a default ceiling of `60` requests per `60` seconds.
+- **Request Size Limits**: Default limits are `262144` bytes for XML, `65536` bytes for JSON, and `131072` bytes for `text/plain`.
+- **Proxy Trust**: `X-Forwarded-For` is ignored unless `iso20022.api.rate-limit.trust-forwarded-for=true`.
+- **Deployment Warning**: Replace the demo usernames/passwords in `application.yml` before any non-demo exposure.
+
+### Default API Users
+
+| Role | Default Username | Access |
+| :--- | :--- | :--- |
+| `WRITER` | `api-writer` | generation, validation, routing, translation, reconciliation |
+| `AUDITOR` | `api-auditor` | lifecycle and audit reads |
+| `ADMIN` | `api-admin` | full API access |
+
+### Hardening Configuration
+
+```yaml
+iso20022:
+  api:
+    enabled: true
+    request-limits:
+      xml-bytes: 262144
+      json-bytes: 65536
+      text-bytes: 131072
+    rate-limit:
+      enabled: true
+      requests-per-window: 60
+      window-seconds: 60
+      trust-forwarded-for: false
+    auth:
+      realm: iso20022-api
+      writer:
+        username: api-writer
+        password: changeit-writer-password
+        role: WRITER
+      auditor:
+        username: api-auditor
+        password: changeit-auditor-password
+        role: AUDITOR
+      admin:
+        username: api-admin
+        password: changeit-admin-password
+        role: ADMIN
+```
+
 ## Requirements
 
 - **Java 17** or higher
@@ -113,6 +161,7 @@ You can generate the XML on the fly by hitting the provided endpoint utilizing `
 
 **Endpoint**: `POST http://localhost:8080/api/v1/pain001`
 **Header**: `Content-Type: application/json`
+**Auth**: HTTP Basic, role `WRITER` or `ADMIN`
 
 **Sample Request Payload:**
 
@@ -203,6 +252,7 @@ This project also includes a robust, multi-stage validation pipeline for incomin
 
 **Endpoint**: `POST http://localhost:8080/api/v1/validate/pain001`
 **Header**: `Content-Type: application/xml` OR `text/xml`
+**Auth**: HTTP Basic, role `WRITER` or `ADMIN`
 
 The Gatekeeper enforces:
 
@@ -224,6 +274,7 @@ The legacy translator automatically decodes a raw FIN string and bridges it iden
 
 **Endpoint**: `POST http://localhost:8080/api/v1/translator/mt103`
 **Header**: `Content-Type: text/plain`
+**Auth**: HTTP Basic, role `WRITER` or `ADMIN`
 
 **Sample Request Payload (MT103 Text):**
 ```text
@@ -257,6 +308,7 @@ It validates the parsed Interbank payload identically against `pacs.008.001.10.x
 
 **Endpoint**: `POST http://localhost:8080/api/v1/validate/pacs008`
 **Header**: `Content-Type: application/xml` OR `text/xml`
+**Auth**: HTTP Basic, role `WRITER` or `ADMIN`
 
 **Responses (`application/xml`)**:
 - **Valid Message**: Returns a native `pacs.002.001.12` FI-to-FI Payment Status Report with `ACCP`.
@@ -268,6 +320,7 @@ Similar to `pain.001`, you can generate an Interbank Settlement message directly
 
 **Endpoint**: `POST http://localhost:8080/api/v1/pacs008`
 **Header**: `Content-Type: application/json`
+**Auth**: HTTP Basic, role `WRITER` or `ADMIN`
 
 | Request Field | pacs.008 Mapping |
 | :--- | :--- |
@@ -282,6 +335,7 @@ The system is now a functional **ISO 20022 Switch**, capable of routing `pacs.00
 
 **Endpoint**: `POST http://localhost:8080/api/v1/switch/route`  
 **Header**: `Content-Type: application/xml`
+**Auth**: HTTP Basic, role `WRITER` or `ADMIN`
 
 ### Switch Features:
 - **BAH Wrapping**: Automatically wraps payloads with the `head.001.001.03` Business Application Header for standard interbank transmission.
@@ -302,6 +356,7 @@ The system now supports automated reconciliation of open payments via Bank-to-Cu
 
 **Endpoint**: `POST http://localhost:8080/api/v1/reconciliation/statement`  
 **Header**: `Content-Type: application/xml`  
+**Auth**: HTTP Basic, role `WRITER` or `ADMIN`
 **Description**: Processes a `camt.053.001.10` bank statement, identifies `EndToEndId`s for settled transactions, and transitions their status to `RECONCILED`.
 
 ### 🛡️ Lifecycle Stages:
@@ -311,6 +366,7 @@ The system now supports automated reconciliation of open payments via Bank-to-Cu
 4.  **FAILED**: Triggered if a `pacs.002` rejection is received.
 
 **Audit Endpoint**: `GET /api/v1/lifecycle/{endToEndId}`  
+**Auth**: HTTP Basic, role `AUDITOR` or `ADMIN`
 Returns the full business state and a complete timeline of all associated ISO messages.
 
 ## 🧠 How the Code Works
@@ -451,8 +507,9 @@ flowchart TD
 - Treat payload persistence as sensitive:
   - Add configurable payload redaction/encryption-at-rest for `iso_message_audits.payload`
   - Avoid logging full XML at DEBUG in production (it may contain PII/financial data)
-- Add basic API hardening if this is exposed beyond a demo:
-  - request size limits (XML payloads), rate limiting, authentication/authorization
+- Add stronger API hardening if this is exposed beyond a basic deployment:
+  - move from in-memory rate limiting to a distributed/shared store
+  - replace demo Basic Auth users with external identity and secret management
 
 ### Configuration & Extensibility
 

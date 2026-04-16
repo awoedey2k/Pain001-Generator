@@ -7,7 +7,7 @@ spring:
 
 logging:
   level:
-    com.lanre.personl.iso20022: DEBUG
+    com.lanre.personl.iso20022: INFO
 
 iso20022:
   security:
@@ -23,5 +23,30 @@ iso20022:
       - EndToEndId
       - InstrId
       - TxId
+  api:
+    enabled: true
+    request-limits:
+      xml-bytes: 262144
+      json-bytes: 65536
+      text-bytes: 131072
+    rate-limit:
+      enabled: true
+      requests-per-window: 60
+      window-seconds: 60
+      trust-forwarded-for: false
+    auth:
+      realm: iso20022-api
+      writer:
+        username: api-writer
+        password: changeit-writer-password
+        role: WRITER
+      auditor:
+        username: api-auditor
+        password: changeit-auditor-password
+        role: AUDITOR
+      admin:
+        username: api-admin
+        password: changeit-admin-password
+        role: ADMIN
   logging:
     include-full-xml: false
