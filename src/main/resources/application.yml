@@ -8,3 +8,20 @@ spring:
 logging:
   level:
     com.lanre.personl.iso20022: DEBUG
+
+iso20022:
+  security:
+    audit-payload-mode: REDACT
+    encryption-key: ""
+    redaction-placeholder: "[REDACTED]"
+    sensitive-xml-tags:
+      - Nm
+      - IBAN
+      - BICFI
+      - Ustrd
+      - AdrLine
+      - EndToEndId
+      - InstrId
+      - TxId
+  logging:
+    include-full-xml: false

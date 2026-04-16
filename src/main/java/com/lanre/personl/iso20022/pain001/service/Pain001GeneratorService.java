@@ -4,11 +4,11 @@ import com.lanre.personl.iso20022.pain001.model.PaymentRequest;
 import com.prowidesoftware.swift.model.mx.MxPain00100111;
 import com.prowidesoftware.swift.model.mx.dic.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -73,6 +73,9 @@ public class Pain001GeneratorService {
 
     private final com.lanre.personl.iso20022.lifecycle.service.LifecycleService lifecycleService;
 
+    @Value("${iso20022.logging.include-full-xml:false}")
+    private boolean includeFullXmlLogging;
+
     /**
      * Generates a pretty-printed pain.001.001.11 XML string from the given
      * {@link PaymentRequest}.
@@ -106,7 +109,14 @@ public class Pain001GeneratorService {
         // ── 6. Lifecycle Tracking ───────────────────────────────────────
         lifecycleService.startWorkflow(request, xml, initiation.getGrpHdr().getMsgId());
 
-        log.debug("Generated pain.001.001.11 XML:\n{}", xml);
+        if (log.isDebugEnabled()) {
+            if (includeFullXmlLogging) {
+                log.debug("Generated pain.001.001.11 XML for msgId={}:\n{}", initiation.getGrpHdr().getMsgId(), xml);
+            } else {
+                log.debug("Generated pain.001.001.11 XML for msgId={} (payload suppressed, {} chars)",
+                        initiation.getGrpHdr().getMsgId(), xml.length());
+            }
+        }
         return xml;
     }
 

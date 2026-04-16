@@ -47,6 +47,7 @@ class PaymentRouterServiceIntegrationTest {
 
         // Assert BAH wrapping
         assertTrue(result.contains("AppHdrAndMsg"));
+        assertTrue(result.contains("urn:iso:std:iso:20022:tech:xsd:head.001.001.03"));
         assertTrue(result.contains("pacs.008.001.10"));
 
         // Assert Persistence
@@ -74,6 +75,7 @@ class PaymentRouterServiceIntegrationTest {
 
         String result = routerService.processAndRoute(pacs008Xml);
 
+        assertTrue(result.contains("urn:iso:std:iso:20022:tech:xsd:head.001.001.03"));
         List<PaymentRoutingAudit> audits = repository.findAll();
         PaymentRoutingAudit latest = audits.get(audits.size() - 1);
         assertEquals("HIGH-VALUE-PRIORITY-QUEUE", latest.getDestinationRoute());

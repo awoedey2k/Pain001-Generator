@@ -40,6 +40,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentRouterService {
 
+    private static final String BAH_NAMESPACE = "urn:iso:std:iso:20022:tech:xsd:head.001.001.03";
+
     private final Pacs008Service pacs008Service;
     private final Pacs002Service pacs002Service;
     private final PaymentRoutingRepository routingRepository;
@@ -148,7 +150,8 @@ public class PaymentRouterService {
     }
 
     private String wrapMessage(String bahXml, String payloadXml) {
-        return "<AppHdrAndMsg xmlns=\"urn:iso:std:iso:20022:tech:xsd:head.001.001.01\">\n" +
+        // Keep the outer wrapper aligned with the BusinessAppHdrV03 schema version.
+        return "<AppHdrAndMsg xmlns=\"" + BAH_NAMESPACE + "\">\n" +
                 bahXml + "\n" +
                 payloadXml + "\n" +
                 "</AppHdrAndMsg>";

@@ -4,6 +4,7 @@ import com.lanre.personl.iso20022.lifecycle.entity.IsoMessageAudit;
 import com.lanre.personl.iso20022.lifecycle.entity.PaymentWorkflow;
 import com.lanre.personl.iso20022.lifecycle.repository.PaymentWorkflowRepository;
 import com.lanre.personl.iso20022.pain001.model.PaymentRequest;
+import com.lanre.personl.iso20022.security.AuditPayloadProtectionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ import java.util.Optional;
 public class LifecycleService {
 
     private final PaymentWorkflowRepository workflowRepository;
+    private final AuditPayloadProtectionService auditPayloadProtectionService;
 
     /**
      * Step 1: Initialize the workflow from a pain.001 request.
@@ -106,7 +108,7 @@ public class LifecycleService {
         IsoMessageAudit audit = IsoMessageAudit.builder()
                 .messageType(type)
                 .messageId(msgId)
-                .payload(payload)
+                .payload(auditPayloadProtectionService.protect(payload))
                 .workflow(workflow)
                 .build();
         workflow.getAuditLogs().add(audit);

@@ -58,6 +58,9 @@ class PaymentLifecycleIntegrationTest {
         assertTrue(workflowInit.isPresent());
         assertEquals("PENDING", workflowInit.get().getStatus());
         assertEquals(1, workflowInit.get().getAuditLogs().size());
+        assertNotNull(workflowInit.get().getAuditLogs().get(0).getPayload());
+        assertTrue(workflowInit.get().getAuditLogs().get(0).getPayload().contains("[REDACTED]"));
+        assertFalse(workflowInit.get().getAuditLogs().get(0).getPayload().contains("Lifecycle Corp"));
 
         // 2. SETTLING
         pacs008Service.generatePacs008Xml(request);

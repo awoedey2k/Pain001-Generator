@@ -285,6 +285,7 @@ The system is now a functional **ISO 20022 Switch**, capable of routing `pacs.00
 
 ### Switch Features:
 - **BAH Wrapping**: Automatically wraps payloads with the `head.001.001.03` Business Application Header for standard interbank transmission.
+- **Wrapper Namespace**: `wrapMessage()` emits `<AppHdrAndMsg xmlns="urn:iso:std:iso:20022:tech:xsd:head.001.001.03">...` so the outer envelope now matches `BusinessAppHdrV03` / `head.001.001.03`.
 - **Intelligent Routing Logic**: Uses the **Strategy Pattern** to select destinations:
     - **Rule A (SEPA)**: Routes `EUR` payments to a mock SEPA Instant service.
     - **Rule B (Fedwire)**: Routes `USD` payments to a Fedwire mock service.
