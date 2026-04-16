@@ -1,5 +1,6 @@
 package com.lanre.personl.iso20022.routing.service;
 
+import com.lanre.personl.iso20022.logging.LoggingContext;
 import com.lanre.personl.iso20022.pacs008.service.Pacs008Service;
 import com.lanre.personl.iso20022.routing.entity.PaymentRoutingAudit;
 import com.lanre.personl.iso20022.routing.repository.PaymentRoutingRepository;
@@ -56,39 +57,42 @@ public class PaymentRouterService {
         // 1. Validation & Parsing
         MxPacs00800110 mxMessage = pacs008Service.validateAndParse(rawPacs008);
         FIToFICustomerCreditTransferV10 pacs = mxMessage.getFIToFICstmrCdtTrf();
-        
+
         String msgId = pacs.getGrpHdr().getMsgId();
         String currency = pacs.getGrpHdr().getTtlIntrBkSttlmAmt().getCcy();
-        
-        // Extract Receiver BIC (Creditor Agent)
-        String receiverBic = extractReceiverBic(pacs);
+        String endToEndId = extractEndToEndId(pacs);
 
-        // 2. Evaluate explicit routing rules from configuration
-        var routingDecision = routingRuleEvaluator.evaluate(currency, receiverBic);
+        try (LoggingContext.Scope ignored = LoggingContext.withIdentifiers(msgId, endToEndId)) {
+            // Extract Receiver BIC (Creditor Agent)
+            String receiverBic = extractReceiverBic(pacs);
 
-        if (routingDecision.isPresent()) {
-            RoutingRuleEvaluator.RoutingDecision decision = routingDecision.get();
-            log.info("Routing logic chose adapter: {} via rule={} (order={})",
-                    decision.adapter().getName(), decision.ruleId(), decision.order());
-            
-            // 3. Wrap with BAH
-            String bahXml = generateBah(msgId, receiverBic);
-            String wrappedMessage = wrapMessage(bahXml, rawPacs008);
-            
-            // 4. Execute Route (Simulation)
-            decision.adapter().route(mxMessage);
-            
-            // 5. Audit Persistence
-            saveAudit(msgId, currency, receiverBic, decision.adapter().getName(), decision.highValue(),
-                    "Matched routing rule: " + decision.ruleId());
-            
-            return wrappedMessage;
-        } else {
-            log.warn("No routing rule found for {} @ {}", currency, receiverBic);
-            saveAudit(msgId, currency, receiverBic, "NONE", false, "No matching Market Infrastructure found");
-            
-            // Generate pacs.002 Rejection
-            return pacs002Service.generateNoRoutingRuleRejection(msgId);
+            // 2. Evaluate explicit routing rules from configuration
+            var routingDecision = routingRuleEvaluator.evaluate(currency, receiverBic);
+
+            if (routingDecision.isPresent()) {
+                RoutingRuleEvaluator.RoutingDecision decision = routingDecision.get();
+                log.info("Routing logic chose adapter: {} via rule={} (order={})",
+                        decision.adapter().getName(), decision.ruleId(), decision.order());
+
+                // 3. Wrap with BAH
+                String bahXml = generateBah(msgId, receiverBic);
+                String wrappedMessage = wrapMessage(bahXml, rawPacs008);
+
+                // 4. Execute Route (Simulation)
+                decision.adapter().route(mxMessage);
+
+                // 5. Audit Persistence
+                saveAudit(msgId, currency, receiverBic, decision.adapter().getName(), decision.highValue(),
+                        "Matched routing rule: " + decision.ruleId());
+
+                return wrappedMessage;
+            } else {
+                log.warn("No routing rule found for {} @ {}", currency, receiverBic);
+                saveAudit(msgId, currency, receiverBic, "NONE", false, "No matching Market Infrastructure found");
+
+                // Generate pacs.002 Rejection
+                return pacs002Service.generateNoRoutingRuleRejection(msgId);
+            }
         }
     }
 
@@ -101,6 +105,14 @@ public class PaymentRouterService {
             return pacs.getCdtTrfTxInf().get(0).getCdtrAgt().getFinInstnId().getBICFI();
         } catch (Exception e) {
             return "UNKNOWN";
+        }
+    }
+
+    private String extractEndToEndId(FIToFICustomerCreditTransferV10 pacs) {
+        try {
+            return pacs.getCdtTrfTxInf().get(0).getPmtId().getEndToEndId();
+        } catch (Exception e) {
+            return null;
         }
     }
 

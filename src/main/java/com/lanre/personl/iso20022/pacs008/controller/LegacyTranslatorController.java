@@ -1,5 +1,6 @@
 package com.lanre.personl.iso20022.pacs008.controller;
 
+import com.lanre.personl.iso20022.logging.LoggingContext;
 import com.lanre.personl.iso20022.pacs008.service.LegacyTranslatorService;
 import com.prowidesoftware.swift.model.mx.MxPacs00800110;
 import io.swagger.v3.oas.annotations.Operation;
@@ -54,14 +55,25 @@ public class LegacyTranslatorController {
             @ApiResponse(responseCode = "403", description = "Caller lacks WRITER or ADMIN role")
     })
     public ResponseEntity<String> translateMT103(@RequestBody String mt103Payload) {
-        log.info("Received request to translate MT103 payload.");
-        try {
-            MxPacs00800110 pacs008 = translatorService.translateMT103ToPacs008(mt103Payload);
-            return ResponseEntity.ok(pacs008.message());
-        } catch (Exception e) {
-            log.error("Failed to translate MT103 message", e);
-            return ResponseEntity.badRequest()
-                    .body("<Error>Failed to parse or translate MT103 snippet: " + e.getMessage() + "</Error>");
+        try (LoggingContext.Scope ignored = LoggingContext.withEndToEndId(extractMtReference(mt103Payload))) {
+            log.info("Received request to translate MT103 payload.");
+            try {
+                MxPacs00800110 pacs008 = translatorService.translateMT103ToPacs008(mt103Payload);
+                return ResponseEntity.ok(pacs008.message());
+            } catch (Exception e) {
+                log.error("Failed to translate MT103 message", e);
+                return ResponseEntity.badRequest()
+                        .body("<Error>Failed to parse or translate MT103 snippet: " + e.getMessage() + "</Error>");
+            }
         }
+    }
+
+    private String extractMtReference(String mt103Payload) {
+        for (String line : mt103Payload.split("\\r?\\n")) {
+            if (line.startsWith(":20:")) {
+                return line.substring(4).trim();
+            }
+        }
+        return null;
     }
 }

@@ -1,5 +1,6 @@
 package com.lanre.personl.iso20022.pain001.service;
 
+import com.lanre.personl.iso20022.logging.LoggingContext;
 import com.lanre.personl.iso20022.pain001.model.PaymentRequest;
 import com.prowidesoftware.swift.model.mx.MxPain00100111;
 import com.prowidesoftware.swift.model.mx.dic.*;
@@ -84,40 +85,44 @@ public class Pain001GeneratorService {
      * @return a valid, pretty-printed XML string conforming to pain.001.001.11
      */
     public String generatePain001Xml(PaymentRequest request) {
-        log.info("Generating pain.001.001.11 XML for debtor={}, creditor={}, amount={} {}",
-                request.getDebtorName(), request.getCreditorName(),
-                request.getAmount(), request.getCurrency());
+        try (LoggingContext.Scope ignored = LoggingContext.withEndToEndId(request.getEndToEndId())) {
+            log.info("Generating pain.001.001.11 XML for debtor={}, creditor={}, amount={} {}",
+                    request.getDebtorName(), request.getCreditorName(),
+                    request.getAmount(), request.getCurrency());
 
-        // ── 1. Create the top-level MX message container ────────────────
-        MxPain00100111 mxMessage = new MxPain00100111();
-        CustomerCreditTransferInitiationV11 initiation = new CustomerCreditTransferInitiationV11();
+            // ── 1. Create the top-level MX message container ────────────────
+            MxPain00100111 mxMessage = new MxPain00100111();
+            CustomerCreditTransferInitiationV11 initiation = new CustomerCreditTransferInitiationV11();
 
-        // ── 2. Build GroupHeader (message-level metadata) ───────────────
-        GroupHeader95 groupHeader = buildGroupHeader(request);
-        initiation.setGrpHdr(groupHeader);
+            // ── 2. Build GroupHeader (message-level metadata) ───────────────
+            GroupHeader95 groupHeader = buildGroupHeader(request);
+            initiation.setGrpHdr(groupHeader);
 
-        // ── 3. Build PaymentInformation (debit-side grouping) ───────────
-        PaymentInstruction40 paymentInstruction = buildPaymentInstruction(request);
-        initiation.getPmtInf().add(paymentInstruction);
+            try (LoggingContext.Scope identifiers = LoggingContext.withIdentifiers(groupHeader.getMsgId(), request.getEndToEndId())) {
+                // ── 3. Build PaymentInformation (debit-side grouping) ───────────
+                PaymentInstruction40 paymentInstruction = buildPaymentInstruction(request);
+                initiation.getPmtInf().add(paymentInstruction);
 
-        // ── 4. Wire everything together ─────────────────────────────────
-        mxMessage.setCstmrCdtTrfInitn(initiation);
+                // ── 4. Wire everything together ─────────────────────────────────
+                mxMessage.setCstmrCdtTrfInitn(initiation);
 
-        // ── 5. Serialize to pretty-printed XML ──────────────────────────
-        String xml = mxMessage.message();
+                // ── 5. Serialize to pretty-printed XML ──────────────────────────
+                String xml = mxMessage.message();
 
-        // ── 6. Lifecycle Tracking ───────────────────────────────────────
-        lifecycleService.startWorkflow(request, xml, initiation.getGrpHdr().getMsgId());
+                // ── 6. Lifecycle Tracking ───────────────────────────────────────
+                lifecycleService.startWorkflow(request, xml, initiation.getGrpHdr().getMsgId());
 
-        if (log.isDebugEnabled()) {
-            if (includeFullXmlLogging) {
-                log.debug("Generated pain.001.001.11 XML for msgId={}:\n{}", initiation.getGrpHdr().getMsgId(), xml);
-            } else {
-                log.debug("Generated pain.001.001.11 XML for msgId={} (payload suppressed, {} chars)",
-                        initiation.getGrpHdr().getMsgId(), xml.length());
+                if (log.isDebugEnabled()) {
+                    if (includeFullXmlLogging) {
+                        log.debug("Generated pain.001.001.11 XML for msgId={}:\n{}", initiation.getGrpHdr().getMsgId(), xml);
+                    } else {
+                        log.debug("Generated pain.001.001.11 XML for msgId={} (payload suppressed, {} chars)",
+                                initiation.getGrpHdr().getMsgId(), xml.length());
+                    }
+                }
+                return xml;
             }
         }
-        return xml;
     }
 
     // =====================================================================

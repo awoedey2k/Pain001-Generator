@@ -1,5 +1,6 @@
 package com.lanre.personl.iso20022.reconciliation.service;
 
+import com.lanre.personl.iso20022.logging.LoggingContext;
 import com.lanre.personl.iso20022.lifecycle.service.LifecycleService;
 import com.prowidesoftware.swift.model.mx.MxCamt05300110;
 import com.prowidesoftware.swift.model.mx.dic.*;
@@ -30,15 +31,17 @@ public class Camt053Service {
      * Parses a camt.053.001.10 Bank-to-Customer Statement and reconciles entries.
      */
     public void processStatement(String xml) {
-        log.info("Processing Bank-to-Customer Statement (camt.053)...");
-        
         MxCamt05300110 mx = MxCamt05300110.parse(xml);
         BankToCustomerStatementV10 statementReport = mx.getBkToCstmrStmt();
         String msgId = mx.getAppHdr() != null ? mx.getAppHdr().messageName() : "CAMT053-" + java.util.UUID.randomUUID().toString().substring(0, 8);
 
-        for (AccountStatement11 stmt : statementReport.getStmt()) {
-            for (ReportEntry12 entry : stmt.getNtry()) {
-                processEntry(entry, xml, msgId);
+        try (LoggingContext.Scope ignored = LoggingContext.withMsgId(msgId)) {
+            log.info("Processing Bank-to-Customer Statement (camt.053)...");
+
+            for (AccountStatement11 stmt : statementReport.getStmt()) {
+                for (ReportEntry12 entry : stmt.getNtry()) {
+                    processEntry(entry, xml, msgId);
+                }
             }
         }
     }
@@ -49,10 +52,12 @@ public class Camt053Service {
                 TransactionReferences6 refs = tx.getRefs();
                 if (refs != null && refs.getEndToEndId() != null) {
                     String e2eId = refs.getEndToEndId();
-                    log.info("Found reconciliation candidate: EndToEndId={}", e2eId);
-                    
-                    // Trigger Lifecycle update
-                    lifecycleService.markAsReconciled(e2eId, fullXml, msgId);
+                    try (LoggingContext.Scope ignored = LoggingContext.withIdentifiers(msgId, e2eId)) {
+                        log.info("Found reconciliation candidate.");
+
+                        // Trigger Lifecycle update
+                        lifecycleService.markAsReconciled(e2eId, fullXml, msgId);
+                    }
                 }
             }
         }

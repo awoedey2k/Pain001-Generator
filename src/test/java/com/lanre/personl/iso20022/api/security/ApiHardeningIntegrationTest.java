@@ -75,6 +75,14 @@ class ApiHardeningIntegrationTest {
     }
 
     @Test
+    @DisplayName("Should attach a request id header for traceability")
+    void shouldAttachRequestIdHeader() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().exists("X-Request-Id"));
+    }
+
+    @Test
     @DisplayName("Should allow writer credentials on payment generation endpoint")
     void shouldAllowWriterToPost() throws Exception {
         mockMvc.perform(post("/api/v1/pain001")

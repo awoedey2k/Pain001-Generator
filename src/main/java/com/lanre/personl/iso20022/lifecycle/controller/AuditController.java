@@ -1,5 +1,6 @@
 package com.lanre.personl.iso20022.lifecycle.controller;
 
+import com.lanre.personl.iso20022.logging.LoggingContext;
 import com.lanre.personl.iso20022.lifecycle.entity.PaymentWorkflow;
 import com.lanre.personl.iso20022.lifecycle.repository.PaymentWorkflowRepository;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/lifecycle")
 @RequiredArgsConstructor
@@ -42,9 +45,12 @@ public class AuditController {
             @ApiResponse(responseCode = "403", description = "Caller lacks AUDITOR or ADMIN role")
     })
     public ResponseEntity<PaymentWorkflow> getWorkflow(@PathVariable String endToEndId) {
-        return workflowRepository.findByEndToEndId(endToEndId)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        try (LoggingContext.Scope ignored = LoggingContext.withEndToEndId(endToEndId)) {
+            log.info("Fetching lifecycle workflow by EndToEndId.");
+            return workflowRepository.findByEndToEndId(endToEndId)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        }
     }
 
     @GetMapping("/all")
@@ -60,6 +66,7 @@ public class AuditController {
             @ApiResponse(responseCode = "403", description = "Caller lacks AUDITOR or ADMIN role")
     })
     public List<PaymentWorkflow> getAllWorkflows() {
+        log.info("Fetching all lifecycle workflows.");
         return workflowRepository.findAll();
     }
 }

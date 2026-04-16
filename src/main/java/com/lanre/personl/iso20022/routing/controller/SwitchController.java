@@ -1,6 +1,8 @@
 package com.lanre.personl.iso20022.routing.controller;
 
+import com.lanre.personl.iso20022.logging.LoggingContext;
 import com.lanre.personl.iso20022.routing.service.PaymentRouterService;
+import com.prowidesoftware.swift.model.mx.MxPacs00800110;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.ExampleObject;
@@ -60,14 +62,44 @@ public class SwitchController {
             @ApiResponse(responseCode = "413", description = "Payload exceeds configured request-size limit")
     })
     public ResponseEntity<String> routePayment(@RequestBody String xmlPayload) {
-        log.info("Switch controller received routing request.");
+        MxPacs00800110 parsed = tryParse(xmlPayload);
+        String msgId = extractMsgId(parsed);
+        String endToEndId = extractEndToEndId(parsed);
+
+        try (LoggingContext.Scope ignored = LoggingContext.withIdentifiers(msgId, endToEndId)) {
+            log.info("Switch controller received routing request.");
+            try {
+                String response = routerService.processAndRoute(xmlPayload);
+                return ResponseEntity.ok(response);
+            } catch (Exception e) {
+                log.error("Switch failed to process payment", e);
+                // In a real switch, we'd return a system fault pacs.002
+                return ResponseEntity.badRequest().body("<Error>" + e.getMessage() + "</Error>");
+            }
+        }
+    }
+
+    private MxPacs00800110 tryParse(String xmlPayload) {
         try {
-            String response = routerService.processAndRoute(xmlPayload);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            log.error("Switch failed to process payment", e);
-            // In a real switch, we'd return a system fault pacs.002
-            return ResponseEntity.badRequest().body("<Error>" + e.getMessage() + "</Error>");
+            return MxPacs00800110.parse(xmlPayload);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private String extractMsgId(MxPacs00800110 parsed) {
+        try {
+            return parsed.getFIToFICstmrCdtTrf().getGrpHdr().getMsgId();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private String extractEndToEndId(MxPacs00800110 parsed) {
+        try {
+            return parsed.getFIToFICstmrCdtTrf().getCdtTrfTxInf().get(0).getPmtId().getEndToEndId();
+        } catch (Exception ignored) {
+            return null;
         }
     }
 }

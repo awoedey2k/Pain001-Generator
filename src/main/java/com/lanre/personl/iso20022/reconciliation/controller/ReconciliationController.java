@@ -1,5 +1,6 @@
 package com.lanre.personl.iso20022.reconciliation.controller;
 
+import com.lanre.personl.iso20022.logging.LoggingContext;
 import com.lanre.personl.iso20022.reconciliation.service.Camt053Service;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -66,13 +67,26 @@ public class ReconciliationController {
             @ApiResponse(responseCode = "500", description = "Statement processing failed")
     })
     public ResponseEntity<String> reconcileStatement(@RequestBody String xml) {
-        log.info("Received statement upload for reconciliation.");
-        try {
-            camt053Service.processStatement(xml);
-            return ResponseEntity.ok("Statement processed successfully. Reconciliation transitions logged.");
-        } catch (Exception e) {
-            log.error("Failed to process reconciliation statement", e);
-            return ResponseEntity.internalServerError().body("Failed to process statement: " + e.getMessage());
+        try (LoggingContext.Scope ignored = LoggingContext.withMsgId(extractStatementMsgId(xml))) {
+            log.info("Received statement upload for reconciliation.");
+            try {
+                camt053Service.processStatement(xml);
+                return ResponseEntity.ok("Statement processed successfully. Reconciliation transitions logged.");
+            } catch (Exception e) {
+                log.error("Failed to process reconciliation statement", e);
+                return ResponseEntity.internalServerError().body("Failed to process statement: " + e.getMessage());
+            }
         }
+    }
+
+    private String extractStatementMsgId(String xml) {
+        String startTag = "<MsgId>";
+        String endTag = "</MsgId>";
+        int start = xml.indexOf(startTag);
+        int end = xml.indexOf(endTag);
+        if (start >= 0 && end > start) {
+            return xml.substring(start + startTag.length(), end).trim();
+        }
+        return null;
     }
 }

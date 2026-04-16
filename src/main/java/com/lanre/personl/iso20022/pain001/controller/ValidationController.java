@@ -1,5 +1,6 @@
 package com.lanre.personl.iso20022.pain001.controller;
 
+import com.lanre.personl.iso20022.logging.LoggingContext;
 import com.lanre.personl.iso20022.pain001.exception.ValidationException;
 import com.lanre.personl.iso20022.pain001.model.ValidationReport;
 import com.lanre.personl.iso20022.pain001.service.Iso20022ValidationService;
@@ -69,8 +70,6 @@ public class ValidationController {
             @ApiResponse(responseCode = "413", description = "Payload exceeds configured request-size limit")
     })
     public ResponseEntity<String> validatePain001(@RequestBody String xml) {
-        log.info("Received pain.001 validation request.");
-        
         ValidationReport report;
         String originalMsgId = null;
 
@@ -84,39 +83,49 @@ public class ValidationController {
                 }
             } catch (Exception ignored) { }
 
-            // Engage Core Validation Engine (Technical -> Semantic -> Business)
-            validationService.validateIncomingMessage(xml);
+            try (LoggingContext.Scope ignored = LoggingContext.withMsgId(originalMsgId)) {
+                log.info("Received pain.001 validation request.");
 
-            log.info("Message validated successfully.");
-            report = ValidationReport.builder()
-                .valid(true)
-                .failedStage(null)
-                .errorMessages(Collections.emptyList())
-                .build();
-                
+                // Engage Core Validation Engine (Technical -> Semantic -> Business)
+                validationService.validateIncomingMessage(xml);
+
+                log.info("Message validated successfully.");
+                report = ValidationReport.builder()
+                    .valid(true)
+                    .failedStage(null)
+                    .errorMessages(Collections.emptyList())
+                    .build();
+            }
         } catch (ValidationException e) {
-            log.warn("Validation Engine intercepted an invalid message at stage [{}]: {}", e.getStage(), e.getErrors());
-            report = ValidationReport.builder()
-                .valid(false)
-                .failedStage(e.getStage())
-                .errorMessages(e.getErrors())
-                .build();
+            try (LoggingContext.Scope ignored = LoggingContext.withMsgId(originalMsgId)) {
+                log.warn("Validation Engine intercepted an invalid message at stage [{}]: {}", e.getStage(), e.getErrors());
+                report = ValidationReport.builder()
+                    .valid(false)
+                    .failedStage(e.getStage())
+                    .errorMessages(e.getErrors())
+                    .build();
+            }
         } catch (Exception e) {
-            log.error("Gatekeeper Critical Exception during Validation Pipeline", e);
-             report = ValidationReport.builder()
-                .valid(false)
-                .failedStage("CRITICAL_SYSTEM_ERROR")
-                .errorMessages(Collections.singletonList("Unknown generic processing failure internally."))
-                .build();
+            try (LoggingContext.Scope ignored = LoggingContext.withMsgId(originalMsgId)) {
+                log.error("Gatekeeper Critical Exception during Validation Pipeline", e);
+                 report = ValidationReport.builder()
+                    .valid(false)
+                    .failedStage("CRITICAL_SYSTEM_ERROR")
+                    .errorMessages(Collections.singletonList("Unknown generic processing failure internally."))
+                    .build();
+            }
         }
 
         // Generate final Standard ISO Acknowledgement (pain.002.001.10) wrapper
-        String responseXml = statusGeneratorService.generateStatusReport(originalMsgId, report);
+        String responseXml;
+        try (LoggingContext.Scope ignored = LoggingContext.withMsgId(originalMsgId)) {
+            responseXml = statusGeneratorService.generateStatusReport(originalMsgId, report);
+        }
 
         // A valid response is always returned to the downstream sender
         // HTTP Status 400 could be used strictly for false, however, XML ACK with RJCT natively handles it.
         return ResponseEntity.ok()
-            .contentType(MediaType.APPLICATION_XML)
+            .contentType(MediaType.parseMediaType(MediaType.APPLICATION_XML_VALUE))
             .body(responseXml);
     }
 }

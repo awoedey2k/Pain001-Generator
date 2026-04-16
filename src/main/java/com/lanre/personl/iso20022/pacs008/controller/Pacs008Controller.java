@@ -1,5 +1,6 @@
 package com.lanre.personl.iso20022.pacs008.controller;
 
+import com.lanre.personl.iso20022.logging.LoggingContext;
 import com.lanre.personl.iso20022.pacs008.service.Pacs008Service;
 import com.lanre.personl.iso20022.pain001.model.PaymentRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,13 +44,15 @@ public class Pacs008Controller {
             @ApiResponse(responseCode = "403", description = "Caller lacks WRITER or ADMIN role")
     })
     public ResponseEntity<String> generatePacs008(@Valid @RequestBody PaymentRequest request) {
-        log.info("Received request to generate pacs.008 XML for: {} -> {}", request.getDebtorName(), request.getCreditorName());
-        try {
-            String xml = pacs008Service.generatePacs008Xml(request);
-            return ResponseEntity.ok(xml);
-        } catch (Exception e) {
-            log.error("Failed to generate pacs.008 message", e);
-            return ResponseEntity.internalServerError().body("<Error>" + e.getMessage() + "</Error>");
+        try (LoggingContext.Scope ignored = LoggingContext.withEndToEndId(request.getEndToEndId())) {
+            log.info("Received request to generate pacs.008 XML for: {} -> {}", request.getDebtorName(), request.getCreditorName());
+            try {
+                String xml = pacs008Service.generatePacs008Xml(request);
+                return ResponseEntity.ok(xml);
+            } catch (Exception e) {
+                log.error("Failed to generate pacs.008 message", e);
+                return ResponseEntity.internalServerError().body("<Error>" + e.getMessage() + "</Error>");
+            }
         }
     }
 }

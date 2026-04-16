@@ -96,6 +96,17 @@ flowchart LR
 - **Proxy Trust**: `X-Forwarded-For` is ignored unless `iso20022.api.rate-limit.trust-forwarded-for=true`.
 - **Deployment Warning**: Replace the demo usernames/passwords in `application.yml` before any non-demo exposure.
 
+## Structured Logging
+
+- **Request Trace Fields**: Every request now carries `requestId`, `httpMethod`, and `requestPath` through the processing chain.
+- **Business Correlation Fields**: Logs populate `msgId` and `endToEndId` as soon as each flow can determine them, covering generation, validation, routing, translation, lifecycle, and reconciliation.
+- **Client Correlation**: The API returns `X-Request-Id` on responses so callers can correlate application logs with a client-visible identifier.
+- **Default Pattern**: Console logs include all trace fields by default.
+
+```text
+2026-04-16T19:41:28.890+01:00 INFO  [fec18929-88c7-4149-b6c0-c5f50352e274] [POST /api/v1/pain001] [msgId=MSGID-20260416194128-6caedcd4] [endToEndId=E2E-AUTH-001] com.lanre.personl.iso20022.lifecycle.service.LifecycleService : Starting lifecycle workflow.
+```
+
 ### Default API Users
 
 | Role | Default Username | Access |
@@ -564,7 +575,6 @@ flowchart TD
 
 ### Observability & Operations
 
-- Add structured logging fields (e.g., `msgId`, `endToEndId`) to every request path for easy tracing.
 - Add health/readiness endpoints and basic metrics (request counts, validation failures per stage).
 
 ### Performance & Data Management

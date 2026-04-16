@@ -1,5 +1,6 @@
 package com.lanre.personl.iso20022.pain001.controller;
 
+import com.lanre.personl.iso20022.logging.LoggingContext;
 import com.lanre.personl.iso20022.pain001.model.PaymentRequest;
 import com.lanre.personl.iso20022.pain001.service.Pain001GeneratorService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -73,13 +74,15 @@ public class Pain001Controller {
             @ApiResponse(responseCode = "403", description = "Caller lacks WRITER or ADMIN role")
     })
     public ResponseEntity<String> generatePain001(@Valid @RequestBody PaymentRequest request) {
-        log.info("Received pain.001.001.11 generation request for debtor={} → creditor={}",
-                request.getDebtorName(), request.getCreditorName());
+        try (LoggingContext.Scope ignored = LoggingContext.withEndToEndId(request.getEndToEndId())) {
+            log.info("Received pain.001.001.11 generation request for debtor={} → creditor={}",
+                    request.getDebtorName(), request.getCreditorName());
 
-        String xml = generatorService.generatePain001Xml(request);
+            String xml = generatorService.generatePain001Xml(request);
 
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(MediaType.APPLICATION_XML_VALUE))
-                .body(xml);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(MediaType.APPLICATION_XML_VALUE))
+                    .body(xml);
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.lanre.personl.iso20022.pacs008.service;
 
+import com.lanre.personl.iso20022.logging.LoggingContext;
 import com.lanre.personl.iso20022.pain001.exception.ValidationException;
 import com.prowidesoftware.swift.model.mx.MxPacs00800110;
 import com.prowidesoftware.swift.model.mx.dic.*;
@@ -61,63 +62,67 @@ public class Pacs008Service {
      * Enforces XSD checking (Technical) and BIC11 standards (Business).
      */
     public MxPacs00800110 validateAndParse(String xml) {
-        log.info("Starting pacs.008 Gatekeeper Validation...");
+        String msgId = extractMsgId(xml);
+        String endToEndId = extractEndToEndId(xml);
+        try (LoggingContext.Scope ignored = LoggingContext.withIdentifiers(msgId, endToEndId)) {
+            log.info("Starting pacs.008 Gatekeeper Validation...");
 
-        // 1. Stage 1: Technical XSD check
-        if (xsdSchema != null) {
-            try {
-                Validator xsdValidator = xsdSchema.newValidator();
-                List<String> exceptions = new ArrayList<>();
-                xsdValidator.setErrorHandler(new org.xml.sax.ErrorHandler() {
-                    public void warning(SAXParseException e) { exceptions.add(e.getMessage()); }
-                    public void error(SAXParseException e) { exceptions.add(e.getMessage()); }
-                    public void fatalError(SAXParseException e) { exceptions.add(e.getMessage()); }
-                });
-                xsdValidator.validate(new StreamSource(new StringReader(xml)));
+            // 1. Stage 1: Technical XSD check
+            if (xsdSchema != null) {
+                try {
+                    Validator xsdValidator = xsdSchema.newValidator();
+                    List<String> exceptions = new ArrayList<>();
+                    xsdValidator.setErrorHandler(new org.xml.sax.ErrorHandler() {
+                        public void warning(SAXParseException e) { exceptions.add(e.getMessage()); }
+                        public void error(SAXParseException e) { exceptions.add(e.getMessage()); }
+                        public void fatalError(SAXParseException e) { exceptions.add(e.getMessage()); }
+                    });
+                    xsdValidator.validate(new StreamSource(new StringReader(xml)));
 
-                if (!exceptions.isEmpty()) {
-                    throw new ValidationException("STAGE_1_TECHNICAL", exceptions);
-                }
-            } catch (ValidationException ve) {
-                throw ve;
-            } catch (Exception e) {
-                throw new ValidationException("STAGE_1_TECHNICAL", List.of("XSD Evaluation Failed: " + e.getMessage()));
-            }
-        }
-
-        // 2. Map Payload securely
-        MxPacs00800110 parsedMessage = MxPacs00800110.parse(xml);
-        FIToFICustomerCreditTransferV10 transfer = parsedMessage.getFIToFICstmrCdtTrf();
-
-        if (transfer == null) {
-            throw new ValidationException("STAGE_1_TECHNICAL", List.of("Invalid document structure: Missing FIToFICstmrCdtTrf payload."));
-        }
-
-        // 3. Stage 2: Business Checks (BIC11 formats on InstgAgt and InstdAgt)
-        List<String> businessErrors = new ArrayList<>();
-        GroupHeader96 grpHdr = transfer.getGrpHdr();
-        
-        if (grpHdr != null) {
-            if (grpHdr.getInstgAgt() != null && grpHdr.getInstgAgt().getFinInstnId() != null) {
-                String instgBic = grpHdr.getInstgAgt().getFinInstnId().getBICFI();
-                if (!isValidBic11(instgBic)) {
-                    businessErrors.add("InstgAgt BICFI violates BIC11 requirements: " + instgBic);
+                    if (!exceptions.isEmpty()) {
+                        throw new ValidationException("STAGE_1_TECHNICAL", exceptions);
+                    }
+                } catch (ValidationException ve) {
+                    throw ve;
+                } catch (Exception e) {
+                    throw new ValidationException("STAGE_1_TECHNICAL", List.of("XSD Evaluation Failed: " + e.getMessage()));
                 }
             }
 
-            if (grpHdr.getInstdAgt() != null && grpHdr.getInstdAgt().getFinInstnId() != null) {
-                String instdBic = grpHdr.getInstdAgt().getFinInstnId().getBICFI();
-                if (!isValidBic11(instdBic)) {
-                    businessErrors.add("InstdAgt BICFI violates BIC11 requirements: " + instdBic);
+            // 2. Map Payload securely
+            MxPacs00800110 parsedMessage = MxPacs00800110.parse(xml);
+            FIToFICustomerCreditTransferV10 transfer = parsedMessage.getFIToFICstmrCdtTrf();
+
+            if (transfer == null) {
+                throw new ValidationException("STAGE_1_TECHNICAL", List.of("Invalid document structure: Missing FIToFICstmrCdtTrf payload."));
+            }
+
+            // 3. Stage 2: Business Checks (BIC11 formats on InstgAgt and InstdAgt)
+            List<String> businessErrors = new ArrayList<>();
+            GroupHeader96 grpHdr = transfer.getGrpHdr();
+
+            if (grpHdr != null) {
+                if (grpHdr.getInstgAgt() != null && grpHdr.getInstgAgt().getFinInstnId() != null) {
+                    String instgBic = grpHdr.getInstgAgt().getFinInstnId().getBICFI();
+                    if (!isValidBic11(instgBic)) {
+                        businessErrors.add("InstgAgt BICFI violates BIC11 requirements: " + instgBic);
+                    }
+                }
+
+                if (grpHdr.getInstdAgt() != null && grpHdr.getInstdAgt().getFinInstnId() != null) {
+                    String instdBic = grpHdr.getInstdAgt().getFinInstnId().getBICFI();
+                    if (!isValidBic11(instdBic)) {
+                        businessErrors.add("InstdAgt BICFI violates BIC11 requirements: " + instdBic);
+                    }
                 }
             }
-        }
 
-        if (!businessErrors.isEmpty()) {
-            throw new ValidationException("STAGE_2_BUSINESS", businessErrors);
-        }
+            if (!businessErrors.isEmpty()) {
+                throw new ValidationException("STAGE_2_BUSINESS", businessErrors);
+            }
 
-        return parsedMessage;
+            return parsedMessage;
+        }
     }
 
     private boolean isValidBic11(String bic) {
@@ -130,78 +135,101 @@ public class Pacs008Service {
      * Generates a valid pacs.008.001.10 XML from a PaymentRequest.
      */
     public String generatePacs008Xml(com.lanre.personl.iso20022.pain001.model.PaymentRequest request) {
-        log.info("Generating pacs.008.001.10 XML for interbank settlement: {} -> {}", request.getDebtorName(), request.getCreditorName());
-        
-        MxPacs00800110 mx = new MxPacs00800110();
-        FIToFICustomerCreditTransferV10 pacs = new FIToFICustomerCreditTransferV10();
-        
-        // 1. Group Header
-        GroupHeader96 grpHdr = new GroupHeader96();
-        grpHdr.setMsgId("PACS8-" + java.util.UUID.randomUUID().toString().substring(0, 8));
-        try {
-            grpHdr.setCreDtTm(javax.xml.datatype.DatatypeFactory.newInstance().newXMLGregorianCalendar(new java.util.GregorianCalendar()));
-        } catch (Exception ignored) {}
-        grpHdr.setNbOfTxs("1");
-        
-        SettlementInstruction11 sttlmInf = new SettlementInstruction11();
-        sttlmInf.setSttlmMtd(SettlementMethod1Code.CLRG); // Clearing
-        grpHdr.setSttlmInf(sttlmInf);
+        try (LoggingContext.Scope ignored = LoggingContext.withEndToEndId(request.getEndToEndId())) {
+            log.info("Generating pacs.008.001.10 XML for interbank settlement: {} -> {}", request.getDebtorName(), request.getCreditorName());
 
-        ActiveCurrencyAndAmount ttlAmt = new ActiveCurrencyAndAmount();
-        ttlAmt.setValue(request.getAmount());
-        ttlAmt.setCcy(request.getCurrency());
-        grpHdr.setTtlIntrBkSttlmAmt(ttlAmt);
-        
-        // Instructing/Instructed agents (Using BICs or defaults)
-        grpHdr.setInstgAgt(createAgent(request.getDebtorBic() != null ? request.getDebtorBic() : "CITIUS33XXX"));
-        grpHdr.setInstdAgt(createAgent(request.getCreditorBic() != null ? request.getCreditorBic() : "BOFAGB2L"));
-        
-        pacs.setGrpHdr(grpHdr);
-        
-        // 2. Transaction Information
-        CreditTransferTransaction50 tx = new CreditTransferTransaction50();
-        PaymentIdentification13 pmtId = new PaymentIdentification13();
-        
-        String e2eId = request.getEndToEndId();
-        if (e2eId == null || e2eId.trim().isEmpty()) {
-            e2eId = "E2E-" + java.util.UUID.randomUUID().toString().substring(0, 8);
-            request.setEndToEndId(e2eId);
+            MxPacs00800110 mx = new MxPacs00800110();
+            FIToFICustomerCreditTransferV10 pacs = new FIToFICustomerCreditTransferV10();
+
+            // 1. Group Header
+            GroupHeader96 grpHdr = new GroupHeader96();
+            grpHdr.setMsgId("PACS8-" + java.util.UUID.randomUUID().toString().substring(0, 8));
+            try {
+                grpHdr.setCreDtTm(javax.xml.datatype.DatatypeFactory.newInstance().newXMLGregorianCalendar(new java.util.GregorianCalendar()));
+            } catch (Exception creationDateException) {
+                // Leave CreDtTm unset if the XML calendar cannot be created.
+            }
+            grpHdr.setNbOfTxs("1");
+
+            SettlementInstruction11 sttlmInf = new SettlementInstruction11();
+            sttlmInf.setSttlmMtd(SettlementMethod1Code.CLRG); // Clearing
+            grpHdr.setSttlmInf(sttlmInf);
+
+            ActiveCurrencyAndAmount ttlAmt = new ActiveCurrencyAndAmount();
+            ttlAmt.setValue(request.getAmount());
+            ttlAmt.setCcy(request.getCurrency());
+            grpHdr.setTtlIntrBkSttlmAmt(ttlAmt);
+
+            // Instructing/Instructed agents (Using BICs or defaults)
+            grpHdr.setInstgAgt(createAgent(request.getDebtorBic() != null ? request.getDebtorBic() : "CITIUS33XXX"));
+            grpHdr.setInstdAgt(createAgent(request.getCreditorBic() != null ? request.getCreditorBic() : "BOFAGB2L"));
+
+            pacs.setGrpHdr(grpHdr);
+
+            // 2. Transaction Information
+            CreditTransferTransaction50 tx = new CreditTransferTransaction50();
+            PaymentIdentification13 pmtId = new PaymentIdentification13();
+
+            String e2eId = request.getEndToEndId();
+            if (e2eId == null || e2eId.trim().isEmpty()) {
+                e2eId = "E2E-" + java.util.UUID.randomUUID().toString().substring(0, 8);
+                request.setEndToEndId(e2eId);
+            }
+            pmtId.setEndToEndId(e2eId);
+            pmtId.setTxId("TX-" + java.util.UUID.randomUUID().toString().substring(0, 8));
+            tx.setPmtId(pmtId);
+
+            try (LoggingContext.Scope identifiers = LoggingContext.withIdentifiers(grpHdr.getMsgId(), e2eId)) {
+                ActiveCurrencyAndAmount intrBkAmt = new ActiveCurrencyAndAmount();
+                intrBkAmt.setValue(request.getAmount());
+                intrBkAmt.setCcy(request.getCurrency());
+                tx.setIntrBkSttlmAmt(intrBkAmt);
+
+                ActiveOrHistoricCurrencyAndAmount instdAmt = new ActiveOrHistoricCurrencyAndAmount();
+                instdAmt.setValue(request.getAmount());
+                instdAmt.setCcy(request.getCurrency());
+                tx.setInstdAmt(instdAmt);
+
+                tx.setChrgBr(ChargeBearerType1Code.SLEV); // Shared
+
+                // Debtor
+                tx.setDbtr(createParty(request.getDebtorName()));
+                tx.setDbtrAcct(createAccount(request.getDebtorIban()));
+                tx.setDbtrAgt(createAgent(request.getDebtorBic() != null ? request.getDebtorBic() : "CITIUS33XXX"));
+
+                // Creditor
+                tx.setCdtr(createParty(request.getCreditorName()));
+                tx.setCdtrAcct(createAccount(request.getCreditorIban()));
+                tx.setCdtrAgt(createAgent(request.getCreditorBic() != null ? request.getCreditorBic() : "BOFAGB2L"));
+
+                pacs.addCdtTrfTxInf(tx);
+                mx.setFIToFICstmrCdtTrf(pacs);
+
+                String xml = mx.message();
+
+                // ── 3. Lifecycle Tracking ───────────────────────────────────────
+                lifecycleService.markAsSettling(request.getEndToEndId(), xml, grpHdr.getMsgId());
+
+                return xml;
+            }
         }
-        pmtId.setEndToEndId(e2eId);
-        pmtId.setTxId("TX-" + java.util.UUID.randomUUID().toString().substring(0, 8));
-        tx.setPmtId(pmtId);
-        
-        ActiveCurrencyAndAmount intrBkAmt = new ActiveCurrencyAndAmount();
-        intrBkAmt.setValue(request.getAmount());
-        intrBkAmt.setCcy(request.getCurrency());
-        tx.setIntrBkSttlmAmt(intrBkAmt);
+    }
 
-        ActiveOrHistoricCurrencyAndAmount instdAmt = new ActiveOrHistoricCurrencyAndAmount();
-        instdAmt.setValue(request.getAmount());
-        instdAmt.setCcy(request.getCurrency());
-        tx.setInstdAmt(instdAmt);
-        
-        tx.setChrgBr(ChargeBearerType1Code.SLEV); // Shared
-        
-        // Debtor
-        tx.setDbtr(createParty(request.getDebtorName()));
-        tx.setDbtrAcct(createAccount(request.getDebtorIban()));
-        tx.setDbtrAgt(createAgent(request.getDebtorBic() != null ? request.getDebtorBic() : "CITIUS33XXX"));
-        
-        // Creditor
-        tx.setCdtr(createParty(request.getCreditorName()));
-        tx.setCdtrAcct(createAccount(request.getCreditorIban()));
-        tx.setCdtrAgt(createAgent(request.getCreditorBic() != null ? request.getCreditorBic() : "BOFAGB2L"));
-        
-        pacs.addCdtTrfTxInf(tx);
-        mx.setFIToFICstmrCdtTrf(pacs);
-        
-        String xml = mx.message();
+    private String extractMsgId(String xml) {
+        return extractBetween(xml, "<MsgId>", "</MsgId>");
+    }
 
-        // ── 3. Lifecycle Tracking ───────────────────────────────────────
-        lifecycleService.markAsSettling(request.getEndToEndId(), xml, grpHdr.getMsgId());
-        
-        return xml;
+    private String extractEndToEndId(String xml) {
+        return extractBetween(xml, "<EndToEndId>", "</EndToEndId>");
+    }
+
+    private String extractBetween(String xml, String startTag, String endTag) {
+        int start = xml.indexOf(startTag);
+        int end = xml.indexOf(endTag);
+        if (start >= 0 && end > start) {
+            return xml.substring(start + startTag.length(), end).trim();
+        }
+        return null;
     }
 
     private BranchAndFinancialInstitutionIdentification6 createAgent(String bic) {
