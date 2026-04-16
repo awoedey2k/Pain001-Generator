@@ -51,6 +51,7 @@ public class ApiSecurityConfiguration {
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(basicAuthenticationEntryPoint(properties)))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/lifecycle/**").hasAnyRole("AUDITOR", "ADMIN")
                         .requestMatchers("/api/v1/**").hasAnyRole("WRITER", "ADMIN")
                         .anyRequest().permitAll())

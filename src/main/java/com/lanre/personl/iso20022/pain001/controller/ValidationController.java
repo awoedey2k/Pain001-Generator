@@ -5,6 +5,14 @@ import com.lanre.personl.iso20022.pain001.model.ValidationReport;
 import com.lanre.personl.iso20022.pain001.service.Iso20022ValidationService;
 import com.lanre.personl.iso20022.pain001.service.Pain002StatusGeneratorService;
 import com.prowidesoftware.swift.model.mx.MxPain00100111;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -20,6 +28,8 @@ import java.util.Collections;
 @RestController
 @RequestMapping("/api/v1/validate")
 @RequiredArgsConstructor
+@Tag(name = "validation", description = "Inbound ISO 20022 validation and status-report generation.")
+@SecurityRequirement(name = "basicAuth")
 public class ValidationController {
 
     private final Iso20022ValidationService validationService;
@@ -33,6 +43,31 @@ public class ValidationController {
      * @return pain.002 XML structured Response
      */
     @PostMapping(value = "/pain001", consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE}, produces = MediaType.APPLICATION_XML_VALUE)
+    @Operation(
+            summary = "Validate pain.001.001.11 XML",
+            description = "Runs technical, semantic, and business validation checks, then returns a pain.002 status report."
+    )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            required = true,
+            content = {
+                    @Content(mediaType = MediaType.APPLICATION_XML_VALUE,
+                            schema = @Schema(type = "string"),
+                            examples = @ExampleObject(
+                                    name = "pain001Xml",
+                                    value = "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.001.001.11\">...</Document>"
+                            )),
+                    @Content(mediaType = MediaType.TEXT_XML_VALUE,
+                            schema = @Schema(type = "string"))
+            }
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "pain.002 validation status report",
+                    content = @Content(mediaType = MediaType.APPLICATION_XML_VALUE,
+                            schema = @Schema(type = "string"))),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Caller lacks WRITER or ADMIN role"),
+            @ApiResponse(responseCode = "413", description = "Payload exceeds configured request-size limit")
+    })
     public ResponseEntity<String> validatePain001(@RequestBody String xml) {
         log.info("Received pain.001 validation request.");
         

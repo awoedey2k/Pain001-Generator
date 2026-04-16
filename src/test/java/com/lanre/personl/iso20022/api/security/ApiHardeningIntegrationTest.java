@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -59,6 +60,18 @@ class ApiHardeningIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(VALID_PAYMENT_REQUEST))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("Should expose OpenAPI docs and Swagger UI without authentication")
+    void shouldExposeOpenApiDocsWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("/api/v1/pain001")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("basicAuth")));
+
+        mockMvc.perform(get("/swagger-ui/index.html"))
+                .andExpect(status().isOk());
     }
 
     @Test

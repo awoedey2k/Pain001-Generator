@@ -9,9 +9,12 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RoutingRuleEvaluatorTest {
+
+    private final RoutingConfigurationValidator routingConfigurationValidator = new RoutingConfigurationValidator();
 
     @Test
     @DisplayName("Should prefer the lower ordered high-value rule over currency mapping")
@@ -21,7 +24,8 @@ class RoutingRuleEvaluatorTest {
                         rule("high-value-priority", 1, "HIGH-VALUE-PRIORITY-QUEUE", List.of(), List.of("CHASUS33XXX")),
                         rule("fedwire-usd", 2, "FEDWIRE-MOCK-SERVICE", List.of("USD"), List.of())
                 ),
-                adapters()
+                adapters(),
+                routingConfigurationValidator
         );
 
         var decision = evaluator.evaluate("USD", "CHASUS33XXX");
@@ -40,7 +44,8 @@ class RoutingRuleEvaluatorTest {
                         rule("fedwire-usd", 1, "FEDWIRE-MOCK-SERVICE", List.of("USD"), List.of()),
                         rule("high-value-priority", 2, "HIGH-VALUE-PRIORITY-QUEUE", List.of(), List.of("CHASUS33XXX"))
                 ),
-                adapters()
+                adapters(),
+                routingConfigurationValidator
         );
 
         var decision = evaluator.evaluate("USD", "CHASUS33XXX");
@@ -48,6 +53,35 @@ class RoutingRuleEvaluatorTest {
         assertTrue(decision.isPresent());
         assertEquals("fedwire-usd", decision.get().ruleId());
         assertEquals("FEDWIRE-MOCK-SERVICE", decision.get().adapter().getName());
+    }
+
+    @Test
+    @DisplayName("Should fail fast when duplicate orders or ids are configured")
+    void shouldFailFastForDuplicateIdsAndOrders() {
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> new RoutingRuleEvaluator(
+                properties(
+                        rule("duplicate", 1, "SEPA-MOCK-SERVICE", List.of("EUR"), List.of()),
+                        rule("duplicate", 1, "FEDWIRE-MOCK-SERVICE", List.of("USD"), List.of())
+                ),
+                adapters(),
+                routingConfigurationValidator
+        ));
+
+        assertTrue(exception.getMessage().contains("duplicated"));
+    }
+
+    @Test
+    @DisplayName("Should fail fast when a rule has no match criteria")
+    void shouldFailFastWhenRuleHasNoMatchCriteria() {
+        IllegalStateException exception = assertThrows(IllegalStateException.class, () -> new RoutingRuleEvaluator(
+                properties(
+                        rule("empty-rule", 1, "SEPA-MOCK-SERVICE", List.of(), List.of())
+                ),
+                adapters(),
+                routingConfigurationValidator
+        ));
+
+        assertTrue(exception.getMessage().contains("at least one currency or receiver BIC"));
     }
 
     private RoutingProperties properties(RoutingProperties.Rule... rules) {

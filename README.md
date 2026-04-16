@@ -79,6 +79,14 @@ flowchart LR
   - `GET /api/v1/lifecycle/{endToEndId}`
   - `GET /api/v1/lifecycle/all`
 
+## OpenAPI & Swagger
+
+- **OpenAPI JSON**: `GET /v3/api-docs`
+- **Swagger UI**: `GET /swagger-ui.html` (redirects to the interactive UI)
+- **Security Visibility**: The generated contract advertises the HTTP Basic `basicAuth` scheme used by protected `/api/v1/**` endpoints.
+- **Payload Discoverability**: JSON models such as `PaymentRequest` are rendered as schemas, and raw XML/text endpoints include example request bodies in the spec.
+- **Operational Note**: Swagger endpoints are intentionally unauthenticated so teams can inspect the contract even when API hardening is enabled.
+
 ## API Hardening
 
 - **Authentication**: All `/api/v1/**` endpoints require HTTP Basic authentication while `iso20022.api.enabled=true`.
@@ -369,6 +377,16 @@ iso20022:
           - USD
 ```
 
+### Routing Validation Rules
+
+- Each rule must define a unique non-blank `id`.
+- Each rule must define a unique positive `order`; rules execute in ascending order and the first match wins.
+- Each rule must reference a known adapter name exposed by the application.
+- Each rule must include at least one match condition: `currencies`, `receiver-bics`, or both.
+- Currency codes must be uppercase three-letter ISO 4217 values such as `EUR` or `USD`.
+- Receiver BICs must be uppercase 8- or 11-character values such as `CHASUS33XXX`.
+- Invalid routing edits now fail application startup with a combined error list so operators can fix all issues in one pass.
+
 - `order`: lower numbers run first
 - `adapter`: must match a registered adapter bean name such as `SEPA-MOCK-SERVICE`
 - `currencies`: optional ISO 4217 matches
@@ -541,8 +559,8 @@ flowchart TD
 
 ### Configuration & Extensibility
 
-- Introduce OpenAPI/Swagger generation to make all endpoints and payload shapes discoverable.
-- Consider validating routing configuration at startup with richer schema/constraint checks if operational teams will edit it frequently.
+- Extend Swagger examples with environment-specific sample payloads if business users will test directly from the UI.
+- Consider moving routing rules into a separately versioned config source if operational teams need approvals or change history beyond `application.yml`.
 
 ### Observability & Operations
 
