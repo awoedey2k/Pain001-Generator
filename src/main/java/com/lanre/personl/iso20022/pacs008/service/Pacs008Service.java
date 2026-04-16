@@ -36,25 +36,24 @@ import java.util.regex.Pattern;
 public class Pacs008Service {
 
     private final com.lanre.personl.iso20022.lifecycle.service.LifecycleService lifecycleService;
-    private final Validator xsdValidator;
+    private final Schema xsdSchema;
     private static final Pattern BIC11_PATTERN = Pattern.compile("^[A-Z]{6,6}[A-Z2-9][A-NP-Z0-9]([A-Z0-9]{3,3})?$");
 
     public Pacs008Service(com.lanre.personl.iso20022.lifecycle.service.LifecycleService lifecycleService) {
         this.lifecycleService = lifecycleService;
-        Validator temp = null;
+        Schema temp = null;
         try {
             SchemaFactory factory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
             ClassPathResource xsdResource = new ClassPathResource("xsd/pacs.008.001.10.xsd");
             try (var xsdStream = xsdResource.getInputStream()) {
                 StreamSource xsdSource = new StreamSource(xsdStream);
                 xsdSource.setSystemId(xsdResource.getURL().toExternalForm());
-                Schema schema = factory.newSchema(xsdSource);
-                temp = schema.newValidator();
+                temp = factory.newSchema(xsdSource);
             }
         } catch (Exception e) {
             log.warn("pacs.008.001.10.xsd validation fallback ignored due to absence. Operating without strict XSD.");
         }
-        this.xsdValidator = temp;
+        this.xsdSchema = temp;
     }
 
     /**
@@ -65,8 +64,9 @@ public class Pacs008Service {
         log.info("Starting pacs.008 Gatekeeper Validation...");
 
         // 1. Stage 1: Technical XSD check
-        if (xsdValidator != null) {
+        if (xsdSchema != null) {
             try {
+                Validator xsdValidator = xsdSchema.newValidator();
                 List<String> exceptions = new ArrayList<>();
                 xsdValidator.setErrorHandler(new org.xml.sax.ErrorHandler() {
                     public void warning(SAXParseException e) { exceptions.add(e.getMessage()); }

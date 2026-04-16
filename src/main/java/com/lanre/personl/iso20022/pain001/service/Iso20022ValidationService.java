@@ -1,7 +1,6 @@
 package com.lanre.personl.iso20022.pain001.service;
 
 import com.lanre.personl.iso20022.pain001.exception.ValidationException;
-import com.lanre.personl.iso20022.pain001.model.ValidationReport;
 import com.prowidesoftware.swift.model.mx.MxPain00100111;
 import com.prowidesoftware.swift.model.mx.dic.CustomerCreditTransferInitiationV11;
 import com.prowidesoftware.swift.model.mx.dic.PaymentInstruction40;
@@ -11,7 +10,6 @@ import com.prowidesoftware.swift.model.mx.dic.PostalAddress24;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
-import org.xml.sax.SAXException;
 import org.xml.sax.SAXParseException;
 
 import javax.xml.XMLConstants;
@@ -41,7 +39,7 @@ import java.util.*;
 @Service
 public class Iso20022ValidationService {
 
-    private final Validator xsdValidator;
+    private final Schema xsdSchema;
 
     public Iso20022ValidationService() {
         try {
@@ -50,8 +48,7 @@ public class Iso20022ValidationService {
             try (var xsdStream = xsdResource.getInputStream()) {
                 StreamSource xsdSource = new StreamSource(xsdStream);
                 xsdSource.setSystemId(xsdResource.getURL().toExternalForm());
-                Schema schema = factory.newSchema(xsdSource);
-                this.xsdValidator = schema.newValidator();
+                this.xsdSchema = factory.newSchema(xsdSource);
             }
         } catch (Exception e) {
             log.error("Failed to initialize XSD Validator: ", e);
@@ -98,6 +95,8 @@ public class Iso20022ValidationService {
     private void performStage1TechnicalValidation(String xml) {
         log.debug("Executing Stage 1 (Technical XSD Check)");
         try {
+            Validator xsdValidator = xsdSchema.newValidator();
+
             // Using a thread-safe custom ErrorHandler to collect all SAX errors instead of failing at the first drop.
             List<String> exceptions = new ArrayList<>();
             xsdValidator.setErrorHandler(new org.xml.sax.ErrorHandler() {

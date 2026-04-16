@@ -3,8 +3,8 @@ package com.lanre.personl.iso20022.pacs008.controller;
 import com.lanre.personl.iso20022.pacs008.service.Pacs008Service;
 import com.lanre.personl.iso20022.pain001.exception.ValidationException;
 import com.lanre.personl.iso20022.pain001.model.ValidationReport;
-import com.lanre.personl.iso20022.pain001.service.Pain002StatusGeneratorService;
 import com.prowidesoftware.swift.model.mx.MxPacs00800110;
+import com.lanre.personl.iso20022.routing.service.Pacs002Service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -23,7 +23,7 @@ import java.util.Collections;
 public class Pacs008ValidationController {
 
     private final Pacs008Service pacs008Service;
-    private final Pain002StatusGeneratorService statusGeneratorService;
+    private final Pacs002Service statusGeneratorService;
 
     @PostMapping(consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE}, produces = MediaType.APPLICATION_XML_VALUE)
     public ResponseEntity<String> validatePacs008(@RequestBody String xmlPayload) {
@@ -32,14 +32,14 @@ public class Pacs008ValidationController {
         try {
             MxPacs00800110 parsedMessage = pacs008Service.validateAndParse(xmlPayload);
             
-            // Generate ACCP Status
+            // Generate ACCP status as pacs.002 for FI-to-FI validation flows
             ValidationReport report = ValidationReport.builder()
                     .valid(true)
                     .errorMessages(Collections.emptyList())
                     .build();
                     
             String msgId = parsedMessage.getFIToFICstmrCdtTrf().getGrpHdr().getMsgId();
-            String responseXml = statusGeneratorService.generateStatusReport(msgId, report);
+            String responseXml = statusGeneratorService.generateValidationStatusReport(msgId, report);
             return ResponseEntity.ok(responseXml);
             
         } catch (ValidationException ve) {
@@ -51,7 +51,7 @@ public class Pacs008ValidationController {
                     .errorMessages(ve.getErrors())
                     .build();
                     
-            String responseXml = statusGeneratorService.generateStatusReport("UNKNOWN-PACS-ID", report);
+            String responseXml = statusGeneratorService.generateValidationStatusReport("UNKNOWN-PACS-ID", report);
             return ResponseEntity.badRequest().body(responseXml);
             
         } catch (Exception e) {
@@ -61,7 +61,7 @@ public class Pacs008ValidationController {
                     .failedStage("SYSTEM_ERROR")
                     .errorMessages(Collections.singletonList(e.getMessage()))
                     .build();
-            return ResponseEntity.internalServerError().body(statusGeneratorService.generateStatusReport("UNKNOWN-PACS-ID", report));
+            return ResponseEntity.internalServerError().body(statusGeneratorService.generateValidationStatusReport("UNKNOWN-PACS-ID", report));
         }
     }
 }

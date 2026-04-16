@@ -13,7 +13,7 @@ Built completely around the robust **Prowide ISO 20022 open-source library**, th
 ## 🧭 Project Map (Modules)
 
 - **pain.001 (Customer Initiation)**: JSON → `pain.001.001.11` XML generation + lifecycle start
-- **Gatekeeper Validation**: inbound XML validation → standards-based status response (`pain.002.001.10`)
+- **Gatekeeper Validation**: inbound XML validation → standards-based status responses (`pain.002.001.10` / `pacs.002.001.12`)
 - **pacs.008 (FI-to-FI Settlement)**: JSON → `pacs.008.001.10` XML generation + lifecycle transition
 - **Legacy Bridge**: MT103 text → `pacs.008` object model + XML response
 - **Switch (Routing)**: inbound `pacs.008` validation + BAH wrapping + adapter routing + routing audit / rejection (`pacs.002.001.12`)
@@ -71,7 +71,7 @@ flowchart LR
 - **Generate `pain.001`**: `POST /api/v1/pain001` (JSON → XML)
 - **Validate `pain.001`**: `POST /api/v1/validate/pain001` (XML → `pain.002`)
 - **Generate `pacs.008`**: `POST /api/v1/pacs008` (JSON → XML)
-- **Validate `pacs.008`**: `POST /api/v1/validate/pacs008` (XML → status response)
+- **Validate `pacs.008`**: `POST /api/v1/validate/pacs008` (XML → `pacs.002`)
 - **Translate MT103 → `pacs.008`**: `POST /api/v1/translator/mt103` (text/plain → XML)
 - **Switch Route `pacs.008`**: `POST /api/v1/switch/route` (XML → wrapped XML or `pacs.002`)
 - **Upload `camt.053`**: `POST /api/v1/reconciliation/statement` (XML → text acknowledgement)
@@ -257,6 +257,10 @@ It validates the parsed Interbank payload identically against `pacs.008.001.10.x
 
 **Endpoint**: `POST http://localhost:8080/api/v1/validate/pacs008`
 **Header**: `Content-Type: application/xml` OR `text/xml`
+
+**Responses (`application/xml`)**:
+- **Valid Message**: Returns a native `pacs.002.001.12` FI-to-FI Payment Status Report with `ACCP`.
+- **Invalid Message**: Returns a native `pacs.002.001.12` rejection with `RJCT` and validation reasons in `<StsRsnInf>`.
 
 
 ### Pacs.008 Generation (Interbank Settlement)
