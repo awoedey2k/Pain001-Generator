@@ -6,11 +6,16 @@ import org.springframework.stereotype.Service;
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.util.HexFormat;
 import java.util.Base64;
 import java.util.List;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,6 +39,24 @@ public class AuditPayloadProtectionService {
             case PLAINTEXT -> payload;
             case REDACT -> redact(payload);
             case ENCRYPT -> encrypt(payload);
+        };
+    }
+
+    public AuditPayloadRecord protectForStorage(String payload) {
+        if (payload == null) {
+            return new AuditPayloadRecord(null, null, null, null);
+        }
+
+        String protectedPayload = protect(payload);
+        String payloadHash = securityProperties.isAuditPayloadHashEnabled() ? sha256Hex(payload) : null;
+
+        return switch (securityProperties.getAuditPayloadStorageMode()) {
+            case DATABASE -> new AuditPayloadRecord(protectedPayload, payloadHash, "DATABASE", null);
+            case HASH_ONLY -> new AuditPayloadRecord(null, payloadHash, "HASH_ONLY", null);
+            case FILESYSTEM -> {
+                String reference = persistToFilesystem(protectedPayload, payloadHash);
+                yield new AuditPayloadRecord(null, payloadHash, "FILESYSTEM", reference);
+            }
         };
     }
 
@@ -75,5 +98,38 @@ public class AuditPayloadProtectionService {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] keyBytes = digest.digest(configuredKey.getBytes(StandardCharsets.UTF_8));
         return new SecretKeySpec(keyBytes, "AES");
+    }
+
+    private String sha256Hex(String payload) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(payload.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to hash audit payload.", e);
+        }
+    }
+
+    private String persistToFilesystem(String payload, String payloadHash) {
+        Iso20022SecurityProperties.BlobStorage blobStorage = securityProperties.getBlobStorage();
+        if (blobStorage == null || !blobStorage.isEnabled()) {
+            throw new IllegalStateException("Filesystem audit payload storage is enabled but iso20022.security.blob-storage.enabled is false.");
+        }
+
+        String basePath = blobStorage.getBasePath();
+        if (basePath == null || basePath.isBlank()) {
+            throw new IllegalStateException("Filesystem audit payload storage is enabled but iso20022.security.blob-storage.base-path is not configured.");
+        }
+
+        try {
+            Path directory = Path.of(basePath).toAbsolutePath().normalize();
+            Files.createDirectories(directory);
+
+            String safeHash = (payloadHash == null || payloadHash.isBlank()) ? "nohash" : payloadHash;
+            Path file = directory.resolve(safeHash + "-" + UUID.randomUUID() + ".txt");
+            Files.writeString(file, payload, StandardCharsets.UTF_8);
+            return file.toString();
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to persist audit payload to filesystem storage.", e);
+        }
     }
 }

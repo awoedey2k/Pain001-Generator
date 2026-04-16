@@ -561,7 +561,10 @@ flowchart TD
 - `iso_message_audits`
   - `messageType`: `pain.001`, `pacs.008`, `pacs.002`, `camt.053`
   - `messageId`: ISO message identifier where available
-  - `payload`: full XML payload stored as CLOB
+  - `payload`: protected XML payload when database-backed storage is enabled
+  - `payloadHash`: SHA-256 hash of the original XML for integrity/correlation
+  - `payloadStorageType`: `DATABASE`, `FILESYSTEM`, or `HASH_ONLY`
+  - `payloadReference`: external blob/file reference when off-database storage is enabled
 - `payment_routing_audit`
   - `msgId`: routed `pacs.008` GroupHeader MsgId
   - `currency`, `receiverBic`, `destinationRoute`, `decisionReason`
@@ -580,7 +583,8 @@ flowchart TD
 ### Security & Compliance
 
 - Treat payload persistence as sensitive:
-  - Add configurable payload redaction/encryption-at-rest for `iso_message_audits.payload`
+  - configurable redaction/encryption-at-rest is implemented for audit payloads
+  - payload storage is configurable between database, filesystem/blob-style storage, and hash-only mode
   - Avoid logging full XML at DEBUG in production (it may contain PII/financial data)
 - Add stronger API hardening if this is exposed beyond a basic deployment:
   - move from in-memory rate limiting to a distributed/shared store
@@ -593,5 +597,4 @@ flowchart TD
 
 ### Performance & Data Management
 
-- Change lifecycle/audit fetch strategy to avoid returning very large entities by default (and prevent potential JSON recursion issues in lifecycle endpoints).
-- Consider storing payload hashes + optional blob storage instead of always storing full XML in the database.
+- Consider moving blob/file payload storage behind a pluggable provider interface (for example S3 or Azure Blob) if this graduates beyond local filesystem-backed storage.

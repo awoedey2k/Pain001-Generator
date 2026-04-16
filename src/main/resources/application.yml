@@ -42,8 +42,13 @@ logging:
 iso20022:
   security:
     audit-payload-mode: REDACT
+    audit-payload-storage-mode: DATABASE
+    audit-payload-hash-enabled: true
     encryption-key: ""
     redaction-placeholder: "[REDACTED]"
+    blob-storage:
+      enabled: false
+      base-path: build/audit-payloads
     sensitive-xml-tags:
       - Nm
       - IBAN

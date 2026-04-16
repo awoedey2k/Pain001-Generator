@@ -59,6 +59,9 @@ class PaymentLifecycleIntegrationTest {
         assertEquals("PENDING", workflowInit.get().getStatus());
         assertEquals(1, workflowInit.get().getAuditLogs().size());
         assertNotNull(workflowInit.get().getAuditLogs().get(0).getPayload());
+        assertNotNull(workflowInit.get().getAuditLogs().get(0).getPayloadHash());
+        assertEquals("DATABASE", workflowInit.get().getAuditLogs().get(0).getPayloadStorageType());
+        assertNull(workflowInit.get().getAuditLogs().get(0).getPayloadReference());
         assertTrue(workflowInit.get().getAuditLogs().get(0).getPayload().contains("[REDACTED]"));
         assertFalse(workflowInit.get().getAuditLogs().get(0).getPayload().contains("Lifecycle Corp"));
 

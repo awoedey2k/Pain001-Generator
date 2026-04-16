@@ -4,6 +4,7 @@ import com.lanre.personl.iso20022.logging.LoggingContext;
 import com.lanre.personl.iso20022.lifecycle.entity.IsoMessageAudit;
 import com.lanre.personl.iso20022.lifecycle.entity.PaymentWorkflow;
 import com.lanre.personl.iso20022.lifecycle.repository.PaymentWorkflowRepository;
+import com.lanre.personl.iso20022.security.AuditPayloadRecord;
 import com.lanre.personl.iso20022.pain001.model.PaymentRequest;
 import com.lanre.personl.iso20022.security.AuditPayloadProtectionService;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -56,7 +58,7 @@ public class LifecycleService {
                     .build();
 
             addAuditLog(workflow, "pain.001", msgId, xml);
-            workflowRepository.save(workflow);
+            workflowRepository.save(Objects.requireNonNull(workflow));
         }
     }
 
@@ -114,10 +116,14 @@ public class LifecycleService {
     }
 
     private void addAuditLog(PaymentWorkflow workflow, String type, String msgId, String payload) {
+        AuditPayloadRecord payloadRecord = auditPayloadProtectionService.protectForStorage(payload);
         IsoMessageAudit audit = IsoMessageAudit.builder()
                 .messageType(type)
                 .messageId(msgId)
-                .payload(auditPayloadProtectionService.protect(payload))
+                .payload(payloadRecord.payload())
+                .payloadHash(payloadRecord.payloadHash())
+                .payloadStorageType(payloadRecord.payloadStorageType())
+                .payloadReference(payloadRecord.payloadReference())
                 .workflow(workflow)
                 .build();
         workflow.getAuditLogs().add(audit);
