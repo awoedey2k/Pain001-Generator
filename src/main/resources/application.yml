@@ -1,6 +1,26 @@
 server:
   port: 8080
 
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db
+        liveness:
+          include: livenessState,ping
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
 spring:
   application:
     name: pain001-generator

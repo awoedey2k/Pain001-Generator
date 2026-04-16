@@ -107,6 +107,24 @@ flowchart LR
 2026-04-16T19:41:28.890+01:00 INFO  [fec18929-88c7-4149-b6c0-c5f50352e274] [POST /api/v1/pain001] [msgId=MSGID-20260416194128-6caedcd4] [endToEndId=E2E-AUTH-001] com.lanre.personl.iso20022.lifecycle.service.LifecycleService : Starting lifecycle workflow.
 ```
 
+## Health & Metrics
+
+- **Health Endpoint**: `GET /actuator/health`
+- **Readiness Endpoint**: `GET /actuator/health/readiness`
+- **Liveness Endpoint**: `GET /actuator/health/liveness`
+- **Metrics Catalog**: `GET /actuator/metrics`
+- **Custom Request Counter**: `iso20022.requests.total` with tags `method`, `path`, and `status`
+- **Custom Validation Failure Counter**: `iso20022.validation.failures` with tags `messageFamily` and `stage`
+- **Operational Scope**: readiness includes `readinessState` and `db`; liveness includes `livenessState` and `ping`
+
+### Example Metric Queries
+
+```text
+GET /actuator/metrics/iso20022.requests.total
+GET /actuator/metrics/iso20022.validation.failures
+GET /actuator/metrics/iso20022.validation.failures?tag=messageFamily:pain.001&tag=stage:STAGE_1_TECHNICAL_XSD
+```
+
 ### Default API Users
 
 | Role | Default Username | Access |
@@ -572,10 +590,6 @@ flowchart TD
 
 - Extend Swagger examples with environment-specific sample payloads if business users will test directly from the UI.
 - Consider moving routing rules into a separately versioned config source if operational teams need approvals or change history beyond `application.yml`.
-
-### Observability & Operations
-
-- Add health/readiness endpoints and basic metrics (request counts, validation failures per stage).
 
 ### Performance & Data Management
 

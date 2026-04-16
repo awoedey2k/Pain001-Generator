@@ -1,6 +1,7 @@
 package com.lanre.personl.iso20022.pain001.controller;
 
 import com.lanre.personl.iso20022.logging.LoggingContext;
+import com.lanre.personl.iso20022.metrics.Iso20022MetricsService;
 import com.lanre.personl.iso20022.pain001.exception.ValidationException;
 import com.lanre.personl.iso20022.pain001.model.ValidationReport;
 import com.lanre.personl.iso20022.pain001.service.Iso20022ValidationService;
@@ -35,6 +36,7 @@ public class ValidationController {
 
     private final Iso20022ValidationService validationService;
     private final Pain002StatusGeneratorService statusGeneratorService;
+    private final Iso20022MetricsService metricsService;
 
     /**
      * Validates an incoming pain.001.001.11 message and responds with 
@@ -98,6 +100,7 @@ public class ValidationController {
             }
         } catch (ValidationException e) {
             try (LoggingContext.Scope ignored = LoggingContext.withMsgId(originalMsgId)) {
+                metricsService.incrementValidationFailure("pain.001", e.getStage());
                 log.warn("Validation Engine intercepted an invalid message at stage [{}]: {}", e.getStage(), e.getErrors());
                 report = ValidationReport.builder()
                     .valid(false)
@@ -107,6 +110,7 @@ public class ValidationController {
             }
         } catch (Exception e) {
             try (LoggingContext.Scope ignored = LoggingContext.withMsgId(originalMsgId)) {
+                metricsService.incrementValidationFailure("pain.001", "CRITICAL_SYSTEM_ERROR");
                 log.error("Gatekeeper Critical Exception during Validation Pipeline", e);
                  report = ValidationReport.builder()
                     .valid(false)

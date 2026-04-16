@@ -1,6 +1,7 @@
 package com.lanre.personl.iso20022.pacs008.controller;
 
 import com.lanre.personl.iso20022.logging.LoggingContext;
+import com.lanre.personl.iso20022.metrics.Iso20022MetricsService;
 import com.lanre.personl.iso20022.pacs008.service.Pacs008Service;
 import com.lanre.personl.iso20022.pain001.exception.ValidationException;
 import com.lanre.personl.iso20022.pain001.model.ValidationReport;
@@ -35,6 +36,7 @@ public class Pacs008ValidationController {
 
     private final Pacs008Service pacs008Service;
     private final Pacs002Service statusGeneratorService;
+    private final Iso20022MetricsService metricsService;
 
     @PostMapping(consumes = {MediaType.APPLICATION_XML_VALUE, MediaType.TEXT_XML_VALUE}, produces = MediaType.APPLICATION_XML_VALUE)
     @Operation(
@@ -86,6 +88,7 @@ public class Pacs008ValidationController {
             
         } catch (ValidationException ve) {
             try (LoggingContext.Scope ignored = LoggingContext.withMsgId("UNKNOWN-PACS-ID")) {
+                metricsService.incrementValidationFailure("pacs.008", ve.getStage());
                 log.error("Gatekeeper bounced pacs.008 message at stage: {}", ve.getStage());
             
                 ValidationReport report = ValidationReport.builder()
@@ -100,6 +103,7 @@ public class Pacs008ValidationController {
             
         } catch (Exception e) {
             try (LoggingContext.Scope ignored = LoggingContext.withMsgId("UNKNOWN-PACS-ID")) {
+                metricsService.incrementValidationFailure("pacs.008", "SYSTEM_ERROR");
                 log.error("Unknown critical error during validation", e);
                 ValidationReport report = ValidationReport.builder()
                         .valid(false)
