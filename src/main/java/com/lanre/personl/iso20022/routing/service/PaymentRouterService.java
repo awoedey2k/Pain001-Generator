@@ -3,7 +3,6 @@ package com.lanre.personl.iso20022.routing.service;
 import com.lanre.personl.iso20022.pacs008.service.Pacs008Service;
 import com.lanre.personl.iso20022.routing.entity.PaymentRoutingAudit;
 import com.lanre.personl.iso20022.routing.repository.PaymentRoutingRepository;
-import com.lanre.personl.iso20022.routing.strategy.MarketInfrastructureAdapter;
 import com.prowidesoftware.swift.model.mx.BusinessAppHdrV03;
 import com.prowidesoftware.swift.model.mx.MxPacs00800110;
 import com.prowidesoftware.swift.model.mx.dic.*;
@@ -15,8 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.xml.datatype.DatatypeFactory;
 import java.time.LocalDateTime;
 import java.util.GregorianCalendar;
-import java.util.List;
-import java.util.Optional;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -28,10 +26,11 @@ import java.util.UUID;
  * and persists the routing decision for audit purposes.
  * </p>
  *
- * <p><b>Routing Rules (Prioritized):</b></p>
+ * <p><b>Routing Rules (Configuration-Driven):</b></p>
  * <ol>
- *   <li><b>High-Value Override</b>: Priority BICs are routed to specialized settlement queues.</li>
- *   <li><b>Currency Mapping</b>: Payments are routed based on ISO 4217 Match (e.g., EUR to SEPA).</li>
+ *   <li><b>Explicit Order</b>: Rules are evaluated by ascending {@code order} from {@code application.yml}.</li>
+ *   <li><b>Receiver BIC Match</b>: Optional high-value or priority BIC lists can override currency mappings.</li>
+ *   <li><b>Currency Match</b>: Currency rules route payments to configured infrastructures (e.g., EUR to SEPA).</li>
  *   <li><b>Fallback</b>: Unroutable payments trigger an automated pacs.002 rejection.</li>
  * </ol>
  */
@@ -45,7 +44,7 @@ public class PaymentRouterService {
     private final Pacs008Service pacs008Service;
     private final Pacs002Service pacs002Service;
     private final PaymentRoutingRepository routingRepository;
-    private final List<MarketInfrastructureAdapter> adapters;
+    private final RoutingRuleEvaluator routingRuleEvaluator;
 
     /**
      * Entry point for the Switch. Validates, wraps with BAH, routes, and audits.
@@ -64,22 +63,24 @@ public class PaymentRouterService {
         // Extract Receiver BIC (Creditor Agent)
         String receiverBic = extractReceiverBic(pacs);
 
-        // 2. Select Strategy (Rule C: High-Value > Rule A/B: Currency)
-        Optional<MarketInfrastructureAdapter> selectedAdapter = findBestAdapter(currency, receiverBic);
+        // 2. Evaluate explicit routing rules from configuration
+        var routingDecision = routingRuleEvaluator.evaluate(currency, receiverBic);
 
-        if (selectedAdapter.isPresent()) {
-            MarketInfrastructureAdapter adapter = selectedAdapter.get();
-            log.info("Routing logic chose adapter: {}", adapter.getName());
+        if (routingDecision.isPresent()) {
+            RoutingRuleEvaluator.RoutingDecision decision = routingDecision.get();
+            log.info("Routing logic chose adapter: {} via rule={} (order={})",
+                    decision.adapter().getName(), decision.ruleId(), decision.order());
             
             // 3. Wrap with BAH
             String bahXml = generateBah(msgId, receiverBic);
             String wrappedMessage = wrapMessage(bahXml, rawPacs008);
             
             // 4. Execute Route (Simulation)
-            adapter.route(mxMessage);
+            decision.adapter().route(mxMessage);
             
             // 5. Audit Persistence
-            saveAudit(msgId, currency, receiverBic, adapter.getName(), true, "Routed successfully");
+            saveAudit(msgId, currency, receiverBic, decision.adapter().getName(), decision.highValue(),
+                    "Matched routing rule: " + decision.ruleId());
             
             return wrappedMessage;
         } else {
@@ -101,20 +102,6 @@ public class PaymentRouterService {
         } catch (Exception e) {
             return "UNKNOWN";
         }
-    }
-
-    private Optional<MarketInfrastructureAdapter> findBestAdapter(String currency, String bic) {
-        // Find HighValue first
-        Optional<MarketInfrastructureAdapter> highValue = adapters.stream()
-            .filter(a -> a.getName().contains("HIGH-VALUE") && a.supports(currency, bic))
-            .findFirst();
-            
-        if (highValue.isPresent()) return highValue;
-
-        // Fallback to currency matching
-        return adapters.stream()
-            .filter(a -> a.supports(currency, bic))
-            .findFirst();
     }
 
     private String generateBah(String msgId, String receiverBic) {
@@ -157,16 +144,16 @@ public class PaymentRouterService {
                 "</AppHdrAndMsg>";
     }
 
-    private void saveAudit(String msgId, String ccy, String bic, String dest, boolean success, String reason) {
+    private void saveAudit(String msgId, String ccy, String bic, String dest, boolean highValue, String reason) {
         PaymentRoutingAudit audit = PaymentRoutingAudit.builder()
             .msgId(msgId)
             .currency(ccy)
             .receiverBic(bic)
             .destinationRoute(dest)
-            .highValue(dest.contains("HIGH-VALUE"))
+            .highValue(highValue)
             .processedAt(LocalDateTime.now())
             .decisionReason(reason)
             .build();
-        routingRepository.save(audit);
+        routingRepository.save(Objects.requireNonNull(audit));
     }
 }

@@ -48,5 +48,23 @@ iso20022:
         username: api-admin
         password: changeit-admin-password
         role: ADMIN
+  routing:
+    rules:
+      - id: high-value-priority
+        order: 1
+        adapter: HIGH-VALUE-PRIORITY-QUEUE
+        receiver-bics:
+          - CHASUS33XXX
+          - CITIUS33XXX
+      - id: sepa-eur
+        order: 2
+        adapter: SEPA-MOCK-SERVICE
+        currencies:
+          - EUR
+      - id: fedwire-usd
+        order: 3
+        adapter: FEDWIRE-MOCK-SERVICE
+        currencies:
+          - USD
   logging:
     include-full-xml: false

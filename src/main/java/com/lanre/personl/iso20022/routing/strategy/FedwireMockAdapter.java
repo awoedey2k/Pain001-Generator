@@ -11,11 +11,6 @@ public class FedwireMockAdapter implements MarketInfrastructureAdapter {
     public String getName() { return "FEDWIRE-MOCK-SERVICE"; }
 
     @Override
-    public boolean supports(String currency, String receiverBic) {
-        return "USD".equalsIgnoreCase(currency);
-    }
-
-    @Override
     public void route(MxPacs00800110 message) {
         log.info("[FEDWIRE ADAPTER] Routing payment {} to Fedwire Funds Service.", 
             message.getFIToFICstmrCdtTrf().getGrpHdr().getMsgId());

@@ -56,6 +56,7 @@ class PaymentRouterServiceIntegrationTest {
         PaymentRoutingAudit latest = audits.get(audits.size() - 1);
         assertEquals("EUR", latest.getCurrency());
         assertEquals("SEPA-MOCK-SERVICE", latest.getDestinationRoute());
+        assertEquals("Matched routing rule: sepa-eur", latest.getDecisionReason());
     }
 
     @Test
@@ -80,6 +81,7 @@ class PaymentRouterServiceIntegrationTest {
         PaymentRoutingAudit latest = audits.get(audits.size() - 1);
         assertEquals("HIGH-VALUE-PRIORITY-QUEUE", latest.getDestinationRoute());
         assertTrue(latest.isHighValue());
+        assertEquals("Matched routing rule: high-value-priority", latest.getDecisionReason());
     }
 
     @Test

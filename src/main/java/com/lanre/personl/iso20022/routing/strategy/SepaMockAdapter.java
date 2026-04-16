@@ -11,11 +11,6 @@ public class SepaMockAdapter implements MarketInfrastructureAdapter {
     public String getName() { return "SEPA-MOCK-SERVICE"; }
 
     @Override
-    public boolean supports(String currency, String receiverBic) {
-        return "EUR".equalsIgnoreCase(currency);
-    }
-
-    @Override
     public void route(MxPacs00800110 message) {
         log.info("[SEPA ADAPTER] Routing payment {} to SEPA Instant Clearing.", 
             message.getFIToFICstmrCdtTrf().getGrpHdr().getMsgId());
