@@ -53,7 +53,9 @@ public class PaymentWorkflow {
     @Schema(example = "2026-04-16T10:15:30")
     private LocalDateTime lastUpdatedAt;
 
-    @OneToMany(mappedBy = "workflow", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    // Keep audit payloads lazy so list endpoints do not pull large CLOBs by default.
+    @OneToMany(mappedBy = "workflow", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OrderBy("timestamp ASC")
     @Builder.Default
     @ArraySchema(schema = @Schema(implementation = IsoMessageAudit.class))
     private List<IsoMessageAudit> auditLogs = new ArrayList<>();
