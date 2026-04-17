@@ -72,6 +72,35 @@ public class Pain002StatusGeneratorService {
         return mx.message();
     }
 
+    public String generateDuplicateStatusReport(String originalMsgId, String endToEndId) {
+        MxPain00200110 mx = new MxPain00200110();
+        CustomerPaymentStatusReportV10 statusReport = new CustomerPaymentStatusReportV10();
+
+        GroupHeader86 grpHdr = new GroupHeader86();
+        grpHdr.setMsgId("STAT-" + UUID.randomUUID().toString().substring(0, 8));
+        grpHdr.setCreDtTm(nowAsXmlGregorianCalendar());
+        PartyIdentification135 initgPty = new PartyIdentification135();
+        initgPty.setNm("PAYMENT-SWITCH-GATEKEEPER");
+        grpHdr.setInitgPty(initgPty);
+        statusReport.setGrpHdr(grpHdr);
+
+        OriginalGroupHeader17 origGrpInf = new OriginalGroupHeader17();
+        origGrpInf.setOrgnlMsgId(originalMsgId != null ? originalMsgId : "UNKNOWN");
+        origGrpInf.setOrgnlMsgNmId("pain.001.001.11");
+        origGrpInf.setGrpSts("RJCT");
+
+        StatusReasonInformation12 statusReason = new StatusReasonInformation12();
+        StatusReason6Choice reasonCode = new StatusReason6Choice();
+        reasonCode.setPrtry("DUPL");
+        statusReason.setRsn(reasonCode);
+        statusReason.getAddtlInf().add("Duplicate request detected for EndToEndId=" + (endToEndId != null ? endToEndId : "UNKNOWN"));
+        origGrpInf.getStsRsnInf().add(statusReason);
+
+        statusReport.setOrgnlGrpInfAndSts(origGrpInf);
+        mx.setCstmrPmtStsRpt(statusReport);
+        return mx.message();
+    }
+
     private XMLGregorianCalendar nowAsXmlGregorianCalendar() {
         try {
             GregorianCalendar cal = GregorianCalendar.from(ZonedDateTime.now());

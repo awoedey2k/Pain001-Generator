@@ -71,6 +71,25 @@ public class Pacs002Service {
         return mx.message();
     }
 
+    public String generateDuplicateRejection(String originalMsgId, String endToEndId) {
+        MxPacs00200112 mx = new MxPacs00200112();
+        FIToFIPaymentStatusReportV12 report = new FIToFIPaymentStatusReportV12();
+
+        report.setGrpHdr(buildGroupHeader("REJ-"));
+        report.addOrgnlGrpInfAndSts(
+                buildOriginalGroupStatus(
+                        originalMsgId != null ? originalMsgId : "UNKNOWN-PACS-ID",
+                        "RJCT",
+                        List.of("Duplicate request detected for EndToEndId=" + (endToEndId != null ? endToEndId : "UNKNOWN")),
+                        null,
+                        "DUPL"
+                )
+        );
+
+        mx.setFIToFIPmtStsRpt(report);
+        return mx.message();
+    }
+
     private GroupHeader101 buildGroupHeader(String prefix) {
         GroupHeader101 grpHdr = new GroupHeader101();
         grpHdr.setMsgId(prefix + UUID.randomUUID().toString().substring(0, 8));

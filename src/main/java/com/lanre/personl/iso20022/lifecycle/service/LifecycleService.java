@@ -1,8 +1,10 @@
 package com.lanre.personl.iso20022.lifecycle.service;
 
+import com.lanre.personl.iso20022.api.error.DuplicateRequestException;
 import com.lanre.personl.iso20022.logging.LoggingContext;
 import com.lanre.personl.iso20022.lifecycle.entity.IsoMessageAudit;
 import com.lanre.personl.iso20022.lifecycle.entity.PaymentWorkflow;
+import com.lanre.personl.iso20022.lifecycle.repository.IsoMessageAuditRepository;
 import com.lanre.personl.iso20022.lifecycle.repository.PaymentWorkflowRepository;
 import com.lanre.personl.iso20022.security.AuditPayloadRecord;
 import com.lanre.personl.iso20022.pain001.model.PaymentRequest;
@@ -37,6 +39,7 @@ import java.util.Optional;
 public class LifecycleService {
 
     private final PaymentWorkflowRepository workflowRepository;
+    private final IsoMessageAuditRepository isoMessageAuditRepository;
     private final AuditPayloadProtectionService auditPayloadProtectionService;
 
     /**
@@ -46,6 +49,10 @@ public class LifecycleService {
     public void startWorkflow(PaymentRequest request, String xml, String msgId) {
         try (LoggingContext.Scope ignored = LoggingContext.withIdentifiers(msgId, request.getEndToEndId())) {
             log.info("Starting lifecycle workflow.");
+
+            if (workflowRepository.existsByEndToEndId(request.getEndToEndId())) {
+                throw new DuplicateRequestException(request.getEndToEndId(), "pain.001");
+            }
 
             PaymentWorkflow workflow = PaymentWorkflow.builder()
                     .endToEndId(request.getEndToEndId())
@@ -69,6 +76,10 @@ public class LifecycleService {
     public void markAsSettling(String endToEndId, String xml, String msgId) {
         try (LoggingContext.Scope ignored = LoggingContext.withIdentifiers(msgId, endToEndId)) {
             log.info("Transitioning workflow to SETTLING.");
+
+            if (isoMessageAuditRepository.existsByWorkflowEndToEndIdAndMessageType(endToEndId, "pacs.008")) {
+                throw new DuplicateRequestException(endToEndId, "pacs.008");
+            }
 
             workflowRepository.findByEndToEndId(endToEndId).ifPresent(workflow -> {
                 workflow.setStatus("SETTLING");

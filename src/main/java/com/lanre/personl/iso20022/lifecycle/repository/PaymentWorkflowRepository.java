@@ -12,6 +12,7 @@ import java.util.Optional;
 @Repository
 public interface PaymentWorkflowRepository extends JpaRepository<PaymentWorkflow, Long> {
     Optional<PaymentWorkflow> findByEndToEndId(String endToEndId);
+    boolean existsByEndToEndId(String endToEndId);
 
     @Query("""
             select new com.lanre.personl.iso20022.lifecycle.dto.LifecycleWorkflowSummaryResponse(

@@ -46,13 +46,10 @@ public class Pacs008Controller {
     public ResponseEntity<String> generatePacs008(@Valid @RequestBody PaymentRequest request) {
         try (LoggingContext.Scope ignored = LoggingContext.withEndToEndId(request.getEndToEndId())) {
             log.info("Received request to generate pacs.008 XML for: {} -> {}", request.getDebtorName(), request.getCreditorName());
-            try {
-                String xml = pacs008Service.generatePacs008Xml(request);
-                return ResponseEntity.ok(xml);
-            } catch (Exception e) {
-                log.error("Failed to generate pacs.008 message", e);
-                return ResponseEntity.internalServerError().body("<Error>" + e.getMessage() + "</Error>");
-            }
+            String xml = pacs008Service.generatePacs008Xml(request);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(MediaType.APPLICATION_XML_VALUE))
+                    .body(xml);
         }
     }
 }
