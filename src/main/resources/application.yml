@@ -24,7 +24,13 @@ management:
 spring:
   application:
     name: pain001-generator
-
+  datasource:
+    url: jdbc:h2:file:./build/h2/iso20022;AUTO_SERVER=TRUE
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: update
 springdoc:
   api-docs:
     path: /v3/api-docs
